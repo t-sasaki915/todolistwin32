@@ -11,12 +11,12 @@
         (IniEntry[]){ __VA_ARGS__ }, \
         ARRAY_COUNT(((IniEntry[]){ __VA_ARGS__ })) \
     }
-
 #define INI_FILE(...) \
     &(IniFile){ \
         (IniSection[]){ __VA_ARGS__ }, \
         ARRAY_COUNT(((IniSection[]){ __VA_ARGS__ })) \
     }
+
 static int g_numberOfSuccess = 0;
 static int g_numberOfFailure = 0;
 
