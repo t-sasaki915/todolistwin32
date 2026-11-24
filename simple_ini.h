@@ -48,7 +48,12 @@ typedef enum
     INI_ERROR_EQUAL_SIGN_NOT_FOUND            = 19,
     INI_ERROR_EXPECTED_EQUAL_SIGN             = 20,
     INI_ERROR_QUOTE_NOT_CLOSED                = 21,
-    INI_ERROR_CLOSE_QUOTE_EXPECTED            = 22
+    INI_ERROR_CLOSE_QUOTE_EXPECTED            = 22,
+    INI_ERROR_SECTION_NOT_FOUND               = 23,
+    INI_ERROR_KEY_NOT_FOUND                   = 24,
+    INI_ERROR_INVALID_BOOL_VALUE              = 25,
+    INI_ERROR_INVALID_LONG_VALUE              = 26,
+    INI_ERROR_EMPTY_VALUE                     = 27
 } IniError;
 
 IniError GetLastIniError(void);
@@ -58,6 +63,14 @@ BOOL ReadIniFileWchar(wchar_t *contentBuffer, IniFile *iniFile);
 BOOL ReadIniFile(const wchar_t *filePath, IniFile *iniFile);
 
 void FreeIniFile(IniFile *iniFile);
+
+BOOL GetStringFromIni(IniFile *iniFile, wchar_t *sectionName, wchar_t *keyName, wchar_t **resultPtr);
+
+BOOL GetBoolFromIni(IniFile *iniFile, wchar_t *sectionName, wchar_t *keyName, BOOL *resultPtr);
+
+LONG GetLongFromIni(IniFile *iniFile, wchar_t *sectionName, wchar_t *keyName, LONG *resultPtr);
+
+BOOL RecoverFromIniErrorUsingDefaultValue(void **resultPtr, void *defaultValuePtr, BOOL recoverFromEmptyValue);
 
 #endif
 

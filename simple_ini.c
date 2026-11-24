@@ -19,6 +19,14 @@ typedef struct
     int iniSectionsCapacity;
 } IniReadContext;
 
+#define ACCEPTABLE_TRUE_VALUE_COUNT 9
+static const wchar_t *g_acceptableTrueValue[ACCEPTABLE_TRUE_VALUE_COUNT] =
+    { L"TRUE", L"True", L"true", L"YES", L"Yes", L"yes", L"Y", L"y", L"1"};
+
+#define ACCEPTABLE_FALSE_VALUE_COUNT 9
+static const wchar_t *g_acceptableFalseValue[ACCEPTABLE_FALSE_VALUE_COUNT] =
+    { L"FALSE", L"False", L"false", L"NO", L"No", L"no", L"N", L"n", L"0" };
+
 IniError g_lastIniError = INI_ERROR_NO_ERROR;
 
 IniError GetLastIniError(void)
@@ -839,5 +847,134 @@ BOOL ReadIniFile(const wchar_t *filePath, IniFile *iniFile)
     return result;
 }
 
+BOOL GetStringFromIni(IniFile *iniFile, wchar_t *sectionName, wchar_t *keyName, wchar_t **resultPtr)
+{
+    for (int i = 0; i < iniFile->numberOfSections; i ++)
+    {
+        IniSection iniSection = iniFile->iniSections[i];
 
+        if (wcscmp(iniSection.sectionName, sectionName) == 0)
+        {
+            for (int j = 0; j < iniSection.numberOfEntries; j ++)
+            {
+                IniEntry iniEntry = iniSection.iniEntries[j];
+                
+                if (wcscmp(iniEntry.key, keyName) == 0)
+                {
+                    if (wcslen(iniEntry.value) == 0)
+                    {
+                        g_lastIniError = INI_ERROR_EMPTY_VALUE;
+
+                        return FALSE;
+                    }
+
+                    *resultPtr = iniEntry.value;
+
+                    return TRUE;
+                }
+            }
+
+            g_lastIniError = INI_ERROR_KEY_NOT_FOUND;
+
+            return FALSE;
+        }
+    }
+
+    g_lastIniError = INI_ERROR_SECTION_NOT_FOUND;
+
+    return FALSE;
+}
+
+BOOL GetBoolFromIni(IniFile *iniFile, wchar_t *sectionName, wchar_t *keyName, BOOL *resultPtr)
+{
+    wchar_t *stringValue;
+    if (!GetStringFromIni(iniFile, sectionName, keyName, &stringValue))
+    {
+        return FALSE;
+    }
+
+    for (int i = 0; i < ACCEPTABLE_TRUE_VALUE_COUNT; i ++)
+    {
+        if (wcscmp(stringValue, g_acceptableTrueValue[i]) == 0)
+        {
+            *resultPtr = TRUE;
+
+            return TRUE;
+        }
+    }
+
+    for (int i = 0; i < ACCEPTABLE_FALSE_VALUE_COUNT; i ++)
+    {
+        if (wcscmp(stringValue, g_acceptableFalseValue[i]) == 0)
+        {
+            *resultPtr = FALSE;
+
+            return TRUE;
+        }
+    }
+
+    g_lastIniError = INI_ERROR_INVALID_BOOL_VALUE;
+
+    return FALSE;
+}
+
+LONG GetLongFromIni(IniFile *iniFile, wchar_t *sectionName, wchar_t *keyName, LONG *resultPtr)
+{
+    wchar_t *stringValue;
+    if (!GetStringFromIni(iniFile, sectionName, keyName, &stringValue))
+    {
+        return FALSE;
+    }
+
+    wchar_t *endPtr;
+    errno = 0;
+    LONG val = wcstol(stringValue, &endPtr, 10);
+
+    if (endPtr == stringValue)
+    {
+        g_lastIniError = INI_ERROR_INVALID_LONG_VALUE;
+
+        return FALSE;
+    }
+    if (*endPtr != L'\0')
+    {
+        g_lastIniError = INI_ERROR_INVALID_LONG_VALUE;
+
+        return FALSE;
+    }
+    if (errno == ERANGE)
+    {
+        g_lastIniError = INI_ERROR_INVALID_LONG_VALUE;
+
+        return FALSE;
+    }
+
+    *resultPtr = val;
+
+    return TRUE;
+}
+
+BOOL RecoverFromIniErrorUsingDefaultValue(void **resultPtr, void *defaultValuePtr, BOOL recoverFromEmptyValue)
+{
+    IniError err = GetLastIniError();
+    if (err == INI_ERROR_SECTION_NOT_FOUND || err == INI_ERROR_KEY_NOT_FOUND)
+    {
+        g_lastIniError = INI_ERROR_NO_ERROR;
+
+        *resultPtr = defaultValuePtr;
+
+        return TRUE;
+    }
+
+    if (recoverFromEmptyValue && err == INI_ERROR_EMPTY_VALUE)
+    {
+        g_lastIniError = INI_ERROR_NO_ERROR;
+
+        *resultPtr = defaultValuePtr;
+
+        return TRUE;
+    }
+
+    return FALSE;
+}
 

@@ -1119,26 +1119,20 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
         MessageBoxW(NULL, msg, L"INI TEST", MB_OK);
         return 0;
     }
-    for (int i = 0; i < iniFile.numberOfSections; i ++)
+
+    wchar_t *test;
+    if (!GetStringFromIni(&iniFile, L"TestSection", L"TestKey", &test))
     {
-        IniSection iniSection = iniFile.iniSections[i];
-
-        wchar_t aa1[1024];
-        swprintf(aa1, 1024, L"Section Start: %ls", iniSection.sectionName);
-        MessageBoxW(NULL, aa1, L"", MB_OK);
-
-        for (int j = 0; j < iniSection.numberOfEntries; j ++)
+        if (!RecoverFromIniErrorUsingDefaultValue((void* )&test, &L"default", TRUE))
         {
-            IniEntry iniEntry = iniSection.iniEntries[j];
-            wchar_t aa3[1024];
-            swprintf(aa3, 1024, L"Key: \"%ls\", Value: \"%ls\"", iniEntry.key, iniEntry.value);
-            MessageBoxW(NULL, aa3, L"", MB_OK);
+            wchar_t msg[5];
+            swprintf(msg, 5, L"%d", GetLastIniError());
+            MessageBoxW(NULL, msg, L"INI TEST", MB_OK);
+            return 0;
         }
-
-        wchar_t aa2[1024];
-        swprintf(aa2, 1024, L"Section End: %ls", iniSection.sectionName);
-        MessageBoxW(NULL, aa2, L"", MB_OK);
     }
+
+    MessageBoxW(NULL, test, test, MB_OK);
 
     FreeIniFile(&iniFile);
 
