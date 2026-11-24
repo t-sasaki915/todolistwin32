@@ -1,0 +1,187 @@
+#pragma code_page(65001)
+
+#include <windows.h>
+
+#include "resource.h"
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_UK
+
+IDD_MAINDIALOG DIALOGEX 0, 0, 222, 239
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION ""
+MENU IDR_MAINDIALOGMENU
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    PUSHBUTTON      "Add Task",IDC_ADDBUTTON,166,7,50,14
+    EDITTEXT        IDC_ENTRY,7,7,154,14,ES_AUTOHSCROLL
+    CONTROL         "",IDC_TASKFRAME,"TEXTLIST",WS_VSCROLL | WS_HSCROLL,7,25,208,207
+END
+
+IDD_VERSIONDIALOG DIALOGEX 0, 0, 280, 93
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION
+CAPTION "About Simple Task List"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    PUSHBUTTON      "Close",IDCANCEL,223,72,50,14
+    LTEXT           "Simple Task List",IDC_TEXTABOUT1,33,17,54,8
+    LTEXT           "A Win32 implementation of COMP16321 Week 7 Lab Application.",IDC_TEXTABOUT2,33,30,216,8
+    LTEXT           "Toma Sasaki",IDC_TEXTABOUT3,33,51,43,8
+    LTEXT           "https://gitlab.cs.man.ac.uk/v14357ts/todolistwin32",IDC_TEXTABOUT4,33,64,170,8
+END
+
+IDD_FRIENDLYNAMECHANGEDIALOG DIALOGEX 0, 0, 232, 47
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION
+CAPTION "Change Task List Name"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,121,27,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,175,27,50,14
+    LTEXT           "New Task List Name:",IDC_NEWTASKLISTNAMELABEL,7,8,71,8
+    EDITTEXT        IDC_NEWTASKLISTNAME,83,7,142,14,ES_AUTOHSCROLL
+END
+
+IDD_TASKDETAILEDITDIALOG DIALOGEX 0, 0, 232, 47
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION
+CAPTION "Change Task Detail"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,121,27,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,175,27,50,14
+    LTEXT           "New Task Detail:",IDC_NEWTASKDETAILLABEL,7,8,71,8
+    EDITTEXT        IDC_NEWTASKDETAIL,65,7,160,14,ES_AUTOHSCROLL
+END
+
+IDR_MAINDIALOGMENU MENU
+BEGIN
+    POPUP "File (&F)"
+    BEGIN
+        MENUITEM "New (&N)\tCtrl+N",              ID_FILE_NEW
+        MENUITEM "Open... (&O)\tCtrl+O",          ID_FILE_OPEN
+        MENUITEM "Save (&S)\tCtrl+S",             ID_FILE_SAVE
+        MENUITEM "Save As... (&A)\tCtrl+Shift+S", ID_FILE_SAVEAS
+        MENUITEM SEPARATOR
+        MENUITEM "Rename Task List... (&R)",      ID_FILE_RENAMETASKLIST
+        MENUITEM SEPARATOR
+        MENUITEM "Exit (&X)",                     ID_FILE_EXIT
+    END
+    POPUP "View (&V)"
+    BEGIN
+        MENUITEM "Always on Top (&T)",            ID_VIEW_ALWAYSONTOP
+        MENUITEM SEPARATOR
+        MENUITEM "Font... (&F)",                  ID_VIEW_FONT
+    END
+    POPUP "Help (&H)"
+    BEGIN
+        MENUITEM "About Simple Task List (&A)",   ID_HELP_ABOUTSIMPLETASKLIST
+    END
+END
+
+IDR_TASKITEMRIGHTCLICKMENU MENU
+BEGIN
+    POPUP ""
+    BEGIN
+        MENUITEM "Mark as Completed (&C)",        ID_TASKITEMRIGHTCLICKMENU_MARKASCOMPLETED
+        MENUITEM "Edit... (&E)",                  ID_TASKITEMRIGHTCLICKMENU_EDIT
+        MENUITEM SEPARATOR
+        MENUITEM "Delete (&D)",                   ID_TASKITEMRIGHTCLICKMENU_DELETE
+    END
+END
+
+STRINGTABLE
+BEGIN
+    IDS_FAILED_TO_OPEN_FILE_MSG           "Failed to open the file '%ls'.\nErrorCode: %d."
+    IDS_OPEN_FILE_ERROR_TITLE             "Open File Error"
+    IDS_READFILE_RETURNED_FALSE_MSG       "ReadFile returned FALSE while reading %ls.\nErrorCode: %d."
+    IDS_BYTE_READ_MISMATCH_MSG            "Bytes read mismatch while reading %ls.\nExpected: %d, Actual: %d."
+    IDS_SIGNATURE_MISMATCH_MSG            "Signature mismatch.\nExpected: %d, Actual: %d."
+    IDS_READ_FILE_ERROR_TITLE             "Read File Error"
+    IDS_WRITEFILE_RETURNED_FALSE_MSG      "WriteFile returned FALSE while writing %ls.\nErrorCode: %d."
+    IDS_BYTE_WRITE_MISMATCH_MSG           "Bytes written mismatch while writing %ls.\nExpected: %d, Actual: %d."
+    IDS_WRITE_FILE_ERROR_TITLE            "Write File Error"
+    IDS_FAILED_TO_ALLOCATE_MEMORY_MSG     "Failed to allocate memory."
+    IDS_MEMORY_ERROR_TITLE                "Memory Error"
+    IDS_UNTITLED                          "Untitled"
+    IDS_MAINDIALOG_TITLE                  "%ls - Simple Task List"
+    IDS_MAINDIALOG_TITLE_EDITED           "*%ls - Simple Task List"
+    IDS_SAVE_CHANGES_PROMPT_MSG           "Would you like to save the changes?"
+    IDS_DELETE_ITEM_PROMPT_MSG            "Would you like to delete this item?"
+    IDS_CONFIRM_DIALOG_TITLE              "Confirm"
+    IDS_PLEASE_ENTER_TASK_NAME_MSG        "Please enter a task name."
+    IDS_INFORMATION_TITLE                 "Information"
+END
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080904b0"
+        BEGIN
+            VALUE "FileDescription", "A Win32 implementation of COMP16321 Week 7 Lab Application."
+            VALUE "FileVersion", "1.0.0.0"
+            VALUE "InternalName", "TodoList.exe"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Toma Sasaki"
+            VALUE "OriginalFilename", "TodoList.exe"
+            VALUE "ProductName", "Simple Task List"
+            VALUE "ProductVersion", "1.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x809, 1200
+    END
+END
+
+IDR_MAINACCELERATOR ACCELERATORS
+BEGIN
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL, NOINVERT
+    "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL, NOINVERT
+    "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL, NOINVERT
+    "S",            ID_FILE_SAVEAS,         VIRTKEY, SHIFT, CONTROL, NOINVERT
+END
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_MAINDIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 215
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 232
+    END
+
+    IDD_VERSIONDIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 273
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 86
+    END
+    IDD_FRIENDLYNAMECHANGEDIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 225
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 40
+    END
+    IDD_TASKDETAILEDITDIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 225
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 40
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
