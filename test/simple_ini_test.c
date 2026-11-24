@@ -103,7 +103,7 @@ void ExpectSuccess(wchar_t *testName, wchar_t *input, IniFile *expectedStruct)
         g_numberOfFailure ++;
     }
 
-    printf("=============================================================\n");
+    printf("=============================================================\n\n");
 }
 
 void ExpectFailure(wchar_t *testName, wchar_t *input, IniError expectedError)
@@ -111,7 +111,7 @@ void ExpectFailure(wchar_t *testName, wchar_t *input, IniError expectedError)
     printf("=============================================================\n");
     
     printf("Test Case %ls is expected to be failed.\n", testName);
-    printf("Input:\n%ls\n", input);
+    printf("Input:\n%ls\n\n", input);
 
     IniFile iniFile = {0};
     if (!ReadIniFileWchar(input, &iniFile))
@@ -132,18 +132,279 @@ void ExpectFailure(wchar_t *testName, wchar_t *input, IniError expectedError)
     }
     else
     {
-        printf("Test Failure: ReadIniFileWchar succeed unexpectedly.\nIniFile structure:\n");
+        printf("Test Failure: ReadIniFileWchar succeed unexpectedly. (Expected Ini Error %d)\nIniFile structure:\n", expectedError);
         PrettyPrintIniFile(&iniFile);
         FreeIniFile(&iniFile);
 
         g_numberOfFailure ++;
     }
 
-    printf("=============================================================\n");
+    printf("=============================================================\n\n");
 }
 
 int main(void)
 {
+    // =========================================================
+    // Section syntax errors
+    // =========================================================
+
+    ExpectFailure(
+        L"Empty section declaration",
+        L"[]",
+        INI_ERROR_EMPTY_SECTION_NAME
+    );
+
+    ExpectFailure(
+        L"Section declaration with whitespace only",
+        L"[ ]",
+        INI_ERROR_EMPTY_SECTION_NAME
+    );
+
+    ExpectFailure(
+        L"Section declaration with multiple whitespaces only",
+        L"[     ]",
+        INI_ERROR_EMPTY_SECTION_NAME
+    );
+
+    ExpectFailure(
+        L"Section declaration without closing bracket",
+        L"[section",
+        INI_ERROR_CLOSE_SQUARE_BRACKET_NOT_FOUND
+    );
+
+    ExpectFailure(
+        L"Section declaration with trailing whitespace but no closing bracket",
+        L"[section   ",
+        INI_ERROR_CLOSE_SQUARE_BRACKET_NOT_FOUND
+    );
+
+    ExpectFailure(
+        L"Section declaration with whitespace but no name",
+        L"[   ",
+        INI_ERROR_UNEXPECTED_END_OF_LINE
+    );
+
+    ExpectFailure(
+        L"Section declaration with only opening bracket",
+        L"[",
+        INI_ERROR_UNEXPECTED_END_OF_LINE
+    );
+
+    ExpectFailure(
+        L"Unexpected character after section declaration",
+        L"[section]a",
+        INI_ERROR_EXPECTED_END_OF_LINE
+    );
+
+    ExpectFailure(
+        L"Unexpected character after section declaration with whitespace",
+        L"[section] abc",
+        INI_ERROR_EXPECTED_END_OF_LINE
+    );
+
+    ExpectFailure(
+        L"Unexpected second closing bracket",
+        L"[section]]",
+        INI_ERROR_EXPECTED_END_OF_LINE
+    );
+
+    ExpectFailure(
+        L"Unexpected second opening bracket",
+        L"[section][another]",
+        INI_ERROR_EXPECTED_END_OF_LINE
+    );
+
+    ExpectFailure(
+        L"Unexpected equal sign after section declaration",
+        L"[section]=",
+        INI_ERROR_EXPECTED_END_OF_LINE
+    );
+
+    // =========================================================
+    // Unexpected closing square bracket
+    // =========================================================
+
+    ExpectFailure(
+        L"Closing bracket without opening bracket",
+        L"]",
+        INI_ERROR_UNEXPECTED_CLOSE_SQUARE_BRACKET
+    );
+
+    ExpectFailure(
+        L"Closing bracket at the beginning of a line",
+        L"   ]",
+        INI_ERROR_UNEXPECTED_CLOSE_SQUARE_BRACKET
+    );
+
+    ExpectFailure(
+        L"Closing bracket followed by text",
+        L"]unexpected",
+        INI_ERROR_UNEXPECTED_CLOSE_SQUARE_BRACKET
+    );
+
+    ExpectFailure(
+        L"Closing bracket inside a section",
+        L"[section]\n]",
+        INI_ERROR_UNEXPECTED_CLOSE_SQUARE_BRACKET
+    );
+
+    // =========================================================
+    // Orphan entries
+    // =========================================================
+
+    ExpectFailure(
+        L"Entry without section",
+        L"key=value",
+        INI_ERROR_ORPHAN_ENTRY
+    );
+
+    ExpectFailure(
+        L"Entry without section with whitespace",
+        L"   key=value",
+        INI_ERROR_ORPHAN_ENTRY
+    );
+
+    ExpectFailure(
+        L"Entry without section with empty value",
+        L"key=",
+        INI_ERROR_ORPHAN_ENTRY
+    );
+
+    ExpectFailure(
+        L"Entry without section with quoted value",
+        L"key=\"value\"",
+        INI_ERROR_ORPHAN_ENTRY
+    );
+
+    // =========================================================
+    // Empty key name
+    // =========================================================
+
+    ExpectFailure(
+        L"Empty key name",
+        L"[section]\n=value",
+        INI_ERROR_EMPTY_KEY_NAME
+    );
+
+    ExpectFailure(
+        L"Empty key name with whitespace before equal sign",
+        L"[section]\n   =value",
+        INI_ERROR_EMPTY_KEY_NAME
+    );
+
+    ExpectFailure(
+        L"Empty key name with whitespace before and after equal sign",
+        L"[section]\n   =   value",
+        INI_ERROR_EMPTY_KEY_NAME
+    );
+
+    // =========================================================
+    // Missing equal sign
+    // =========================================================
+
+    ExpectFailure(
+        L"Missing equal sign",
+        L"[section]\nkey",
+        INI_ERROR_EQUAL_SIGN_NOT_FOUND
+    );
+
+    ExpectFailure(
+        L"Missing equal sign with trailing whitespace",
+        L"[section]\nkey   ",
+        INI_ERROR_EQUAL_SIGN_NOT_FOUND
+    );
+
+    ExpectFailure(
+        L"Missing equal sign with spaces between key characters",
+        L"[section]\nkey value",
+        INI_ERROR_EQUAL_SIGN_NOT_FOUND
+    );
+
+    ExpectFailure(
+        L"Missing equal sign with colon",
+        L"[section]\nkey:value",
+        INI_ERROR_EQUAL_SIGN_NOT_FOUND
+    );
+
+    ExpectFailure(
+        L"Missing equal sign with colon and whitespace",
+        L"[section]\nkey : value",
+        INI_ERROR_EQUAL_SIGN_NOT_FOUND
+    );
+
+    ExpectFailure(
+        L"Missing equal sign with tab",
+        L"[section]\nkey\tvalue",
+        INI_ERROR_EQUAL_SIGN_NOT_FOUND
+    );
+
+    // =========================================================
+    // Unclosed quotation marks
+    // =========================================================
+
+    ExpectFailure(
+        L"Unclosed quotation mark",
+        L"[section]\nkey=\"value",
+        INI_ERROR_QUOTE_NOT_CLOSED
+    );
+
+    ExpectFailure(
+        L"Empty unclosed quotation mark",
+        L"[section]\nkey=\"",
+        INI_ERROR_QUOTE_NOT_CLOSED
+    );
+
+    ExpectFailure(
+        L"Unclosed quotation mark with whitespace",
+        L"[section]\nkey=\"value   ",
+        INI_ERROR_QUOTE_NOT_CLOSED
+    );
+
+    ExpectFailure(
+        L"Unclosed quotation mark with comment character",
+        L"[section]\nkey=\"value ; comment",
+        INI_ERROR_QUOTE_NOT_CLOSED
+    );
+
+    ExpectFailure(
+        L"Unclosed quotation mark with hash comment character",
+        L"[section]\nkey=\"value # comment",
+        INI_ERROR_QUOTE_NOT_CLOSED
+    );
+
+    // =========================================================
+    // Unexpected characters after quoted values
+    // =========================================================
+
+    ExpectFailure(
+        L"Unexpected character after quoted value",
+        L"[section]\nkey=\"value\"x",
+        INI_ERROR_EXPECTED_END_OF_LINE
+    );
+
+    ExpectFailure(
+        L"Unexpected text after quoted value",
+        L"[section]\nkey=\"value\" extra",
+        INI_ERROR_EXPECTED_END_OF_LINE
+    );
+
+    ExpectFailure(
+        L"Unexpected equal sign after quoted value",
+        L"[section]\nkey=\"value\"=another",
+        INI_ERROR_EXPECTED_END_OF_LINE
+    );
+
+    ExpectFailure(
+        L"Unexpected second quoted value",
+        L"[section]\nkey=\"value\"\"another\"",
+        INI_ERROR_EXPECTED_END_OF_LINE
+    );
+
+    ExpectFailure(
+        L"Unexpected opening bracket after quoted value",
+        L"[section]\nkey=\"value\"[",
+        INI_ERROR_EXPECTED_END_OF_LINE
+    );
 
     printf("\nTest Result: %d Succeeded, %d Failed.\n", g_numberOfSuccess, g_numberOfFailure);
 
