@@ -3,6 +3,20 @@
 #include <windows.h>
 #include <stdio.h>
 
+#define ARRAY_COUNT(array) (sizeof(array) / sizeof((array)[0]))
+#define INI_ENTRY(key, value) { (wchar_t *)(key), (wchar_t *)(value) }
+#define INI_SECTION(name, ...) \
+    { \
+        (wchar_t *)(name), \
+        (IniEntry[]){ __VA_ARGS__ }, \
+        ARRAY_COUNT(((IniEntry[]){ __VA_ARGS__ })) \
+    }
+
+#define INI_FILE(...) \
+    &(IniFile){ \
+        (IniSection[]){ __VA_ARGS__ }, \
+        ARRAY_COUNT(((IniSection[]){ __VA_ARGS__ })) \
+    }
 static int g_numberOfSuccess = 0;
 static int g_numberOfFailure = 0;
 
@@ -404,6 +418,668 @@ int main(void)
         L"Unexpected opening bracket after quoted value",
         L"[section]\nkey=\"value\"[",
         INI_ERROR_EXPECTED_END_OF_LINE
+    );
+
+    // =========================================================
+    // Basic
+    // =========================================================
+
+    ExpectSuccess(
+        L"Single section and single entry",
+        L"[Section]\r\n"
+        L"Key=Value",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Multiple entries",
+        L"[Section]\r\n"
+        L"Key1=Value1\r\n"
+        L"Key2=Value2\r\n"
+        L"Key3=Value3",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key1", L"Value1"),
+                INI_ENTRY(L"Key2", L"Value2"),
+                INI_ENTRY(L"Key3", L"Value3")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Multiple sections",
+        L"[Section1]\r\n"
+        L"Key1=Value1\r\n"
+        L"[Section2]\r\n"
+        L"Key2=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section1",
+                INI_ENTRY(L"Key1", L"Value1")
+            ),
+            INI_SECTION(
+                L"Section2",
+                INI_ENTRY(L"Key2", L"Value2")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Multiple sections and multiple entries",
+        L"[Section1]\r\n"
+        L"Key1=Value1\r\n"
+        L"Key2=Value2\r\n"
+        L"[Section2]\r\n"
+        L"Key3=Value3\r\n"
+        L"Key4=Value4",
+        INI_FILE(
+            INI_SECTION(
+                L"Section1",
+                INI_ENTRY(L"Key1", L"Value1"),
+                INI_ENTRY(L"Key2", L"Value2")
+            ),
+            INI_SECTION(
+                L"Section2",
+                INI_ENTRY(L"Key3", L"Value3"),
+                INI_ENTRY(L"Key4", L"Value4")
+            )
+        )
+    );
+
+    // =========================================================
+    // Empty values
+    // =========================================================
+
+    ExpectSuccess(
+        L"Empty value",
+        L"[Section]\r\n"
+        L"Key=",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Empty value with spaces",
+        L"[Section]\r\n"
+        L"Key=   ",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Empty value with comment",
+        L"[Section]\r\n"
+        L"Key=; comment",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Empty quoted value",
+        L"[Section]\r\n"
+        L"Key=\"\"",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"")
+            )
+        )
+    );
+
+    // =========================================================
+    // Whitespace
+    // =========================================================
+
+    ExpectSuccess(
+        L"Whitespace around section name",
+        L"[   Section   ]",
+        INI_FILE(
+            INI_SECTION(
+                L"Section"
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Whitespace around equal sign",
+        L"[Section]\r\n"
+        L"Key   =   Value",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Leading whitespace before entry",
+        L"[Section]\r\n"
+        L"    Key=Value",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Trailing whitespace in key",
+        L"[Section]\r\n"
+        L"Key   =Value",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Whitespace before section declaration",
+        L"    [Section]",
+        INI_FILE(
+            INI_SECTION(
+                L"Section"
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Tab around section name",
+        L"[\tSection\t]",
+        INI_FILE(
+            INI_SECTION(
+                L"Section"
+            )
+        )
+    );
+
+    // =========================================================
+    // Quoted values
+    // =========================================================
+
+    ExpectSuccess(
+        L"Quoted value",
+        L"[Section]\r\n"
+        L"Key=\"Hello World\"",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Hello World")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Quoted empty value",
+        L"[Section]\r\n"
+        L"Key=\"\"",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Quoted value with leading and trailing spaces",
+        L"[Section]\r\n"
+        L"Key=\"  Hello World  \"",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"  Hello World  ")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Quoted value containing equal sign",
+        L"[Section]\r\n"
+        L"Key=\"A=B=C\"",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"A=B=C")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Quoted value containing semicolon",
+        L"[Section]\r\n"
+        L"Key=\"Value;Comment\"",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value;Comment")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Quoted value containing hash",
+        L"[Section]\r\n"
+        L"Key=\"Value#Comment\"",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value#Comment")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Quoted value followed by comment",
+        L"[Section]\r\n"
+        L"Key=\"Value\" ; comment",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    // =========================================================
+    // Unquoted values
+    // =========================================================
+
+    ExpectSuccess(
+        L"Value containing equal signs",
+        L"[Section]\r\n"
+        L"Key=A=B=C",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"A=B=C")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Value containing internal spaces",
+        L"[Section]\r\n"
+        L"Key=Hello World",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Hello World")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Value with trailing comment",
+        L"[Section]\r\n"
+        L"Key=Value ; comment",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Value with trailing hash comment",
+        L"[Section]\r\n"
+        L"Key=Value # comment",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Value containing semicolon without whitespace",
+        L"[Section]\r\n"
+        L"Key=Value;Comment",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Value containing hash without whitespace",
+        L"[Section]\r\n"
+        L"Key=Value#Comment",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Value containing multiple internal spaces",
+        L"[Section]\r\n"
+        L"Key=Hello   World",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Hello   World")
+            )
+        )
+    );
+
+    // =========================================================
+    // Comments
+    // =========================================================
+
+    ExpectSuccess(
+        L"Semicolon comment",
+        L"; comment\r\n"
+        L"[Section]\r\n"
+        L"Key=Value",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Hash comment",
+        L"# comment\r\n"
+        L"[Section]\r\n"
+        L"Key=Value",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Comment after section declaration",
+        L"[Section] ; comment\r\n"
+        L"Key=Value",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Hash comment after section declaration",
+        L"[Section] # comment\r\n"
+        L"Key=Value",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Comments between entries",
+        L"[Section]\r\n"
+        L"Key1=Value1\r\n"
+        L"; comment\r\n"
+        L"# comment\r\n"
+        L"Key2=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key1", L"Value1"),
+                INI_ENTRY(L"Key2", L"Value2")
+            )
+        )
+    );
+
+    // =========================================================
+    // Line endings
+    // =========================================================
+
+    ExpectSuccess(
+        L"LF line endings",
+        L"[Section]\n"
+        L"Key1=Value1\n"
+        L"Key2=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key1", L"Value1"),
+                INI_ENTRY(L"Key2", L"Value2")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"CR line endings",
+        L"[Section]\r"
+        L"Key1=Value1\r"
+        L"Key2=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key1", L"Value1"),
+                INI_ENTRY(L"Key2", L"Value2")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Mixed line endings",
+        L"[Section]\r\n"
+        L"Key1=Value1\n"
+        L"Key2=Value2\r"
+        L"Key3=Value3",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key1", L"Value1"),
+                INI_ENTRY(L"Key2", L"Value2"),
+                INI_ENTRY(L"Key3", L"Value3")
+            )
+        )
+    );
+
+    // =========================================================
+    // Empty sections
+    // =========================================================
+
+    ExpectSuccess(
+        L"Empty section",
+        L"[Section]",
+        INI_FILE(
+            INI_SECTION(L"Section")
+        )
+    );
+
+    ExpectSuccess(
+        L"Multiple empty sections",
+        L"[Section1]\r\n"
+        L"[Section2]",
+        INI_FILE(
+            INI_SECTION(L"Section1"),
+            INI_SECTION(L"Section2")
+        )
+    );
+
+    ExpectSuccess(
+        L"Empty section between non-empty sections",
+        L"[Section1]\r\n"
+        L"Key=Value\r\n"
+        L"[Section2]\r\n"
+        L"[Section3]\r\n"
+        L"Key2=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section1",
+                INI_ENTRY(L"Key", L"Value")
+            ),
+            INI_SECTION(L"Section2"),
+            INI_SECTION(
+                L"Section3",
+                INI_ENTRY(L"Key2", L"Value2")
+            )
+        )
+    );
+
+    // =========================================================
+    // Special characters and Unicode
+    // =========================================================
+
+    ExpectSuccess(
+        L"Japanese section and entry",
+        L"[一般]\r\n"
+        L"名前=太郎",
+        INI_FILE(
+            INI_SECTION(
+                L"一般",
+                INI_ENTRY(L"名前", L"太郎")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Unicode value",
+        L"[Section]\r\n"
+        L"Key=こんにちは世界",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"こんにちは世界")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Special characters in value",
+        L"[Section]\r\n"
+        L"Key=!@#$%^&*()_+-=[]{};:',.<>/?",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"!@")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Special characters in section name",
+        L"[Section-123_ABC]",
+        INI_FILE(
+            INI_SECTION(L"Section-123_ABC")
+        )
+    );
+
+    // =========================================================
+    // Repeated names
+    // =========================================================
+
+    ExpectSuccess(
+        L"Duplicate keys",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"Key=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value1"),
+                INI_ENTRY(L"Key", L"Value2")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Duplicate section names",
+        L"[Section]\r\n"
+        L"Key1=Value1\r\n"
+        L"[Section]\r\n"
+        L"Key2=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key1", L"Value1")
+            ),
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key2", L"Value2")
+            )
+        )
+    );
+
+    // =========================================================
+    // Blank lines
+    // =========================================================
+
+    ExpectSuccess(
+        L"Leading blank lines",
+        L"\r\n"
+        L"\r\n"
+        L"[Section]\r\n"
+        L"Key=Value",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Trailing blank lines",
+        L"[Section]\r\n"
+        L"Key=Value\r\n"
+        L"\r\n"
+        L"\r\n",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value")
+            )
+        )
+    );
+
+    ExpectSuccess(
+        L"Blank lines between entries",
+        L"[Section]\r\n"
+        L"Key1=Value1\r\n"
+        L"\r\n"
+        L"\r\n"
+        L"Key2=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key1", L"Value1"),
+                INI_ENTRY(L"Key2", L"Value2")
+            )
+        )
     );
 
     printf("\nTest Result: %d Succeeded, %d Failed.\n", g_numberOfSuccess, g_numberOfFailure);
