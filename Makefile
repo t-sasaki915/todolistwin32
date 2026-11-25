@@ -7,8 +7,8 @@ LDFLAGS = -static -static-libgcc
 
 BIN_NAME = TodoList.exe
 
-C_SOURCES = main.c text_list.c task_list_file.c layout.c util.c simple_ini.c
-C_HEADERS = resource.h text_list.h task_list_file.h layout.h util.h simple_ini.h
+C_SOURCES = main.c app_state.c text_list.c task_list_file.c layout.c util.c simple_ini.c
+C_HEADERS = resource.h app_state.h text_list.h task_list_file.h layout.h util.h simple_ini.h
 
 RESOURCE_FILE = resource.rc
 RESOURCE_FILE_O = resource.o

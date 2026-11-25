@@ -202,27 +202,13 @@ void SaveTaskListFile(wchar_t *filePath)
     ThereAreNoUnsavedChanges();
 }
 
-BOOL CreateTodoListFileOFN(OPENFILENAMEW *ofn, DWORD flags)
+void CreateTodoListFileOFN(OPENFILENAMEW *ofn, wchar_t *szFile, DWORD flags)
 {
-    wchar_t *szFile = calloc(1024, sizeof(wchar_t));
-    if (szFile == NULL)
-    {
-        MessageBoxUsingResourceString(
-            g_hInstance,
-            g_mainDialog,
-            MB_ICONERROR | MB_OK,
-            IDS_MEMORY_ERROR_TITLE,
-            IDS_FAILED_TO_ALLOCATE_MEMORY_MSG
-        );
-
-        return FALSE;
-    }
-
     ofn->lStructSize     = sizeof(OPENFILENAMEW);
     ofn->hwndOwner       = g_mainDialog;
     ofn->lpstrFile       = szFile;
     ofn->lpstrFile[0]    = L'\0';
-    ofn->nMaxFile        = sizeof(szFile);
+    ofn->nMaxFile        = MAX_PATH;
     ofn->lpstrFilter     = L"Todo List Files (*.tdl)\0*.tdl\0\0";
     ofn->lpstrDefExt     = L"tdl";
     ofn->nFilterIndex    = 1;
@@ -230,28 +216,20 @@ BOOL CreateTodoListFileOFN(OPENFILENAMEW *ofn, DWORD flags)
     ofn->nMaxFileTitle   = 0;
     ofn->lpstrInitialDir = NULL;
     ofn->Flags           = flags;
-
-    return TRUE;
 }
 
 BOOL SaveTaskListAs(void)
 {
     OPENFILENAMEW ofn = {0};
-    if (!CreateTodoListFileOFN(&ofn, OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT))
-    {
-        return FALSE;
-    }
+    wchar_t fileName[MAX_PATH];
+    CreateTodoListFileOFN(&ofn, fileName, OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT);
 
     if (!GetSaveFileNameW(&ofn))
     {
-        free(ofn.lpstrFile);
-
         return FALSE;
     }
 
-    SaveTaskListFile(ofn.lpstrFile);
-
-    free(ofn.lpstrFile);
+    SaveTaskListFile(fileName);
 
     return TRUE;
 }
@@ -319,21 +297,18 @@ void NewFile(void)
 void OpenTaskListFile(void)
 {
     OPENFILENAMEW ofn = {0};
-    TaskListFile taskListFile = {0};
+    wchar_t fileName[MAX_PATH];
+    CreateTodoListFileOFN(&ofn, fileName, OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST);
 
-    if (!CreateTodoListFileOFN(&ofn, OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST))
+    if (!GetOpenFileNameW(&ofn))
     {
         return;
     }
 
-    if (!GetOpenFileNameW(&ofn))
+    TaskListFile taskListFile = {0};
+    if (!ReadTaskListFile(fileName, &taskListFile))
     {
-        goto CleanUp;
-    }
-
-    if (!ReadTaskListFile(ofn.lpstrFile, &taskListFile))
-    {
-        goto CleanUp;
+        return;
     }
 
     if (!ConfirmSaveChangesBeforeContinuing())
@@ -348,17 +323,12 @@ void OpenTaskListFile(void)
         AddTaskEntry(&taskListFile.taskEntries[i]);
     }
 
-    UpdateCurrentTaskListFilePath(ofn.lpstrFile);
+    UpdateCurrentTaskListFilePath(fileName);
     UpdateCurrentTaskListFriendlyName(taskListFile.friendlyName);
 
     ThereAreNoUnsavedChanges();
 
 CleanUp:
-    if (ofn.lpstrFile != NULL)
-    {
-        free(ofn.lpstrFile);
-        ofn.lpstrFile = NULL;
-    }
     if (taskListFile.taskEntries != NULL)
     {
         for (int i = 0; i < taskListFile.taskItemCount; i ++)
