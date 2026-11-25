@@ -98,7 +98,7 @@ BOOL LoadConfigData(ConfigData *data)
     BOOL topMostEnabled;
     if (!GetBoolFromIni(&iniFile, L"General", L"AlwaysOnTop", &topMostEnabled))
     {
-        if (!RecoverFromIniErrorUsingDefaultValue((void *) &topMostEnabled, (void *) &(g_defConfig.topMostEnabled), TRUE))
+        if (!SubstituteBoolDefault(&topMostEnabled, g_defConfig.topMostEnabled, TRUE))
         {
             configCurrentlyReading = L"General.AlwaysOnTop";
 
@@ -109,7 +109,7 @@ BOOL LoadConfigData(ConfigData *data)
     wchar_t *fontName;
     if (!GetStringFromIni(&iniFile, L"Font", L"FontName", &fontName))
     {
-        if (!RecoverFromIniErrorUsingDefaultValue((void *) &fontName, (void *) &(g_defConfig.fontName), TRUE))
+        if (!SubstituteStringDefault(&fontName, g_defConfig.fontName, TRUE))
         {
             configCurrentlyReading = L"Font.FontName";
 
@@ -120,7 +120,7 @@ BOOL LoadConfigData(ConfigData *data)
     LONG fontSize;
     if (!GetLongFromIni(&iniFile, L"Font", L"FontSize", &fontSize))
     {
-        if (!RecoverFromIniErrorUsingDefaultValue((void *) &fontSize, (void *) &(g_defConfig.fontSize), TRUE))
+        if (!SubstituteLongDefault(&fontSize, g_defConfig.fontSize, TRUE))
         {
             configCurrentlyReading = L"Font.FontSize";
 

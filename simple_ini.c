@@ -954,23 +954,71 @@ LONG GetLongFromIni(IniFile *iniFile, wchar_t *sectionName, wchar_t *keyName, LO
     return TRUE;
 }
 
-BOOL RecoverFromIniErrorUsingDefaultValue(void **resultPtr, void *defaultValuePtr, BOOL recoverFromEmptyValue)
+BOOL SubstituteStringDefault(wchar_t **resultPtr, wchar_t *defValPtr, BOOL substituteEmptyValue)
 {
     IniError err = GetLastIniError();
     if (err == INI_ERROR_SECTION_NOT_FOUND || err == INI_ERROR_KEY_NOT_FOUND)
     {
         g_lastIniError = INI_ERROR_NO_ERROR;
 
-        *resultPtr = defaultValuePtr;
+        *resultPtr = defValPtr;
 
         return TRUE;
     }
 
-    if (recoverFromEmptyValue && err == INI_ERROR_EMPTY_VALUE)
+    if (substituteEmptyValue && err == INI_ERROR_EMPTY_VALUE)
     {
         g_lastIniError = INI_ERROR_NO_ERROR;
 
-        *resultPtr = defaultValuePtr;
+        *resultPtr = defValPtr;
+
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+BOOL SubstituteBoolDefault(BOOL *resultPtr, BOOL defValPtr, BOOL substituteEmptyValue)
+{
+    IniError err = GetLastIniError();
+    if (err == INI_ERROR_SECTION_NOT_FOUND || err == INI_ERROR_KEY_NOT_FOUND)
+    {
+        g_lastIniError = INI_ERROR_NO_ERROR;
+
+        *resultPtr = defValPtr;
+
+        return TRUE;
+    }
+
+    if (substituteEmptyValue && err == INI_ERROR_EMPTY_VALUE)
+    {
+        g_lastIniError = INI_ERROR_NO_ERROR;
+
+        *resultPtr = defValPtr;
+
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+BOOL SubstituteLongDefault(LONG *resultPtr, LONG defValPtr, BOOL substituteEmptyValue)
+{
+    IniError err = GetLastIniError();
+    if (err == INI_ERROR_SECTION_NOT_FOUND || err == INI_ERROR_KEY_NOT_FOUND)
+    {
+        g_lastIniError = INI_ERROR_NO_ERROR;
+
+        *resultPtr = defValPtr;
+
+        return TRUE;
+    }
+
+    if (substituteEmptyValue && err == INI_ERROR_EMPTY_VALUE)
+    {
+        g_lastIniError = INI_ERROR_NO_ERROR;
+
+        *resultPtr = defValPtr;
 
         return TRUE;
     }

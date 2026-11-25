@@ -70,7 +70,11 @@ BOOL GetBoolFromIni(IniFile *iniFile, wchar_t *sectionName, wchar_t *keyName, BO
 
 LONG GetLongFromIni(IniFile *iniFile, wchar_t *sectionName, wchar_t *keyName, LONG *resultPtr);
 
-BOOL RecoverFromIniErrorUsingDefaultValue(void **resultPtr, void *defaultValuePtr, BOOL recoverFromEmptyValue);
+BOOL SubstituteStringDefault(wchar_t **resultPtr, wchar_t *defValPtr, BOOL substituteEmptyValue);
+
+BOOL SubstituteBoolDefault(BOOL *resultPtr, BOOL defValPtr, BOOL substituteEmptyValue);
+
+BOOL SubstituteLongDefault(LONG *resultPtr, LONG defValPtr, BOOL substituteEmptyValue);
 
 #endif
 

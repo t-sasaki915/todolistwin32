@@ -632,6 +632,7 @@ INT_PTR CALLBACK MainDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM l
     {
         case WM_INITDIALOG: {
             InitialiseTaskListFile(g_hInstance, hwnd);
+            InitialiseConfig(g_hInstance, hwnd);
 
             g_mainDialog     = hwnd;
             g_addButton      = GetDlgItem(g_mainDialog, IDC_ADDBUTTON);
