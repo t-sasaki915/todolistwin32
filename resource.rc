@@ -108,6 +108,9 @@ BEGIN
     IDS_CONFIRM_DIALOG_TITLE              "Confirm"
     IDS_PLEASE_ENTER_TASK_NAME_MSG        "Please enter a task name."
     IDS_INFORMATION_TITLE                 "Information"
+    IDS_CONFIG_ERROR_TITLE                "Configuration Error"
+    IDS_FAILED_TO_READ_CONFIG_FILE_MSG    "Failed to read the configuration file: %d."
+    IDS_INI_ERROR_MSG                     "Ini Error while reading %ls: %d"
 END
 
 VS_VERSION_INFO VERSIONINFO

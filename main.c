@@ -1,35 +1,13 @@
 #include <windows.h>
 #include <wchar.h>
 
+#include "app_state.h"
 #include "text_list.h"
 #include "task_list_file.h"
 #include "layout.h"
 #include "simple_ini.h"
 #include "util.h"
 #include "resource.h"
-
-typedef struct
-{
-    int textListUniqueId;
-    TaskEntry taskEntry;
-} TextListUniqueIdAndTaskEntry;
-
-typedef struct
-{
-    TextListUniqueIdAndTaskEntry *entries;
-    wchar_t *currentTaskListFilePath;
-    wchar_t *currentTaskListFriendlyName;
-    BOOL hasUnsavedChanges;
-    
-    int entryCount;
-    int entryCapacity;
-
-    HFONT customTextListFont;
-
-    BOOL topMostEnabled;
-
-    int taskItemRightClickMenuTarget;
-} TaskListState;
 
 static HINSTANCE g_hInstance;
 
@@ -40,96 +18,18 @@ static HWND  g_taskFrame              = NULL;
 static HMENU g_mainDialogMenu         = NULL;
 static HMENU g_taskItemRightClickMenu = NULL;
 
-static TaskListState *g_appState = NULL;
-
-int LookupTaskEntryIndexByTextListUniqueId(int textListUniqueId)
-{
-    if (textListUniqueId < 0)
-    {
-        return -1;
-    }
-
-    for (int i = 0; i < g_appState->entryCount; i ++)
-    {
-        if (g_appState->entries[i].textListUniqueId == textListUniqueId)
-        {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-TaskEntry *LookupTaskEntryByTextListUniqueId(int textListUniqueId)
-{
-    if (textListUniqueId < 0)
-    {
-        return NULL;
-    }
-
-    int index = LookupTaskEntryIndexByTextListUniqueId(textListUniqueId);
-    if (index < 0)
-    {
-        return NULL;
-    }
-
-    return &(g_appState->entries[index].taskEntry);
-}
-
 void DeleteTaskEntries(void)
 {
-    if (g_appState->entries != NULL)
-    {
-        for (int i = 0; i < g_appState->entryCount; i ++)
-        {
-            if (g_appState->entries[i].taskEntry.taskDetail != NULL)
-            {
-                free(g_appState->entries[i].taskEntry.taskDetail);
-                g_appState->entries[i].taskEntry.taskDetail = NULL;
-            }
-        }
-
-        free(g_appState->entries);
-        g_appState->entries = NULL;
-    }
-
-    g_appState->entryCount    = 0;
-    g_appState->entryCapacity = 0;
-
+    DeleteTaskEntriesFromAppState();
     SendMessageW(g_taskFrame, WM_TEXTLIST_CLEAR, 0, 0);
 }
 
 void DeleteTaskEntry(int textListUniqueId)
 {
-    if (textListUniqueId < 0)
+    if (!DeleteTaskEntryFromAppState(textListUniqueId))
     {
         return;
     }
-
-    int index = LookupTaskEntryIndexByTextListUniqueId(textListUniqueId);
-    if (index < 0)
-    {
-        return;
-    }
-
-    TaskEntry *taskEntry = &(g_appState->entries[index].taskEntry);
-    if (taskEntry->taskDetail != NULL)
-    {
-        free(taskEntry->taskDetail);
-        taskEntry->taskDetail = NULL;
-    }
-
-    int elementsToMoveCount = g_appState->entryCount - index - 1;
-    if (elementsToMoveCount > 0)
-    {
-        memmove(
-            &(g_appState->entries[index]),
-            &(g_appState->entries[index + 1]),
-            elementsToMoveCount * sizeof(TextListUniqueIdAndTaskEntry)
-        );
-    }
-
-    (g_appState->entryCount) --;
 
     SendMessageW(
         g_taskFrame,
@@ -142,9 +42,21 @@ void DeleteTaskEntry(int textListUniqueId)
 void UpdateMainDialogTitle(void)
 {
     wchar_t *friendlyName = NULL;
-    if (g_appState->currentTaskListFriendlyName != NULL)
+    if (GetCurrentTaskListFriendlyName() != NULL)
     {
-        friendlyName = _wcsdup(g_appState->currentTaskListFriendlyName);
+        friendlyName = _wcsdup(GetCurrentTaskListFriendlyName());
+        if (friendlyName == NULL)
+        {
+            MessageBoxUsingResourceString(
+                g_hInstance,
+                g_mainDialog,
+                MB_ICONERROR | MB_OK,
+                IDS_MEMORY_ERROR_TITLE,
+                IDS_FAILED_TO_ALLOCATE_MEMORY_MSG
+            );
+
+            return;
+        }
     }
     else
     {
@@ -154,8 +66,8 @@ void UpdateMainDialogTitle(void)
         }
     }
 
-    UINT titleFormatID = g_appState->hasUnsavedChanges ? IDS_MAINDIALOG_TITLE_EDITED
-                                                       : IDS_MAINDIALOG_TITLE;
+    UINT titleFormatID = HasUnsavedChanges() ? IDS_MAINDIALOG_TITLE_EDITED
+                                             : IDS_MAINDIALOG_TITLE;
 
     wchar_t *titleFormat = NULL;
     if (LoadStringAndValidate(g_hInstance, titleFormatID, &titleFormat) < 0)
@@ -195,44 +107,18 @@ void GetFontStyleAndColour(TaskEntry *entry, TextListFontStyle *fontStyle, COLOR
 
 void ThereAreUnsavedChanges(void)
 {
-    g_appState->hasUnsavedChanges = TRUE;
+    SetUnsavedChangesStatus(TRUE);
     UpdateMainDialogTitle();
 }
 
 void ThereAreNoUnsavedChanges(void)
 {
-    g_appState->hasUnsavedChanges = FALSE;
+    SetUnsavedChangesStatus(FALSE);
     UpdateMainDialogTitle();
 }
 
-void AddTask(TaskEntry *entry)
+void AddTaskEntry(TaskEntry *entry)
 {
-    if (g_appState->entryCount >= g_appState->entryCapacity)
-    {
-        int newCapacity = g_appState->entryCapacity == 0 ? 8
-                                                         : g_appState->entryCapacity * 2;
-
-        TextListUniqueIdAndTaskEntry *newEntries = realloc(
-            g_appState->entries,
-            newCapacity * sizeof(TextListUniqueIdAndTaskEntry)
-        );
-        if (newEntries == NULL)
-        {
-            MessageBoxUsingResourceString(
-                g_hInstance,
-                g_mainDialog,
-                MB_ICONERROR | MB_OK,
-                IDS_MEMORY_ERROR_TITLE,
-                IDS_FAILED_TO_ALLOCATE_MEMORY_MSG
-            );
-
-            return;
-        }
-
-        g_appState->entries       = newEntries;
-        g_appState->entryCapacity = newCapacity;
-    }
-
     TextListFontStyle fontStyle;
     COLORREF textColour;
     GetFontStyleAndColour(entry, &fontStyle, &textColour);
@@ -253,19 +139,19 @@ void AddTask(TaskEntry *entry)
         return;
     }
 
-    int index = g_appState->entryCount;
-    g_appState->entries[index].textListUniqueId     = textListUniqueId;
-    g_appState->entries[index].taskEntry.taskDetail = _wcsdup(entry->taskDetail);
-    g_appState->entries[index].taskEntry.isDone     = entry->isDone;
+    if (!AddTaskEntryToAppState(textListUniqueId, entry))
+    {
+        SendMessageW(g_taskFrame, WM_TEXTLIST_REMOVE_ENTRY, 0, (LPARAM) textListUniqueId);
 
-    (g_appState->entryCount) ++;
-    
+        return;
+    }
+
     SetWindowTextW(g_entry, L"");
 
     ThereAreUnsavedChanges();
 }
 
-void GetEntryAndAddTask(void)
+void GetEntryContentAndAddTask(void)
 {
     wchar_t entryContent[1024];
     GetWindowTextW(g_entry, entryContent, 1024);
@@ -288,13 +174,38 @@ void GetEntryAndAddTask(void)
     TaskEntry entry  = {0};
     entry.taskDetail = entryContent;
     entry.isDone     = FALSE;
-    AddTask(&entry);
+    AddTaskEntry(&entry);
 }
 
 void SaveTaskListFile(wchar_t *filePath)
 {
-    TaskEntry *taskEntries = calloc(g_appState->entryCount, sizeof(TaskEntry));
+    TaskEntry *taskEntries = GetOrderedTaskEntryList();
     if (taskEntries == NULL)
+    {
+        return;
+    }
+
+    TaskListFile taskListFile  = {0};
+    taskListFile.friendlyName  = GetCurrentTaskListFriendlyName();
+    taskListFile.taskEntries   = taskEntries;
+    taskListFile.taskItemCount = GetAppStateEntryCount();
+
+    if (!WriteTaskListFile(filePath, &taskListFile))
+    {
+        return;
+    }
+
+    free(taskEntries);
+
+    UpdateCurrentTaskListFilePath(filePath);
+
+    ThereAreNoUnsavedChanges();
+}
+
+BOOL CreateTodoListFileOFN(OPENFILENAMEW *ofn, DWORD flags)
+{
+    wchar_t *szFile = calloc(1024, sizeof(wchar_t));
+    if (szFile == NULL)
     {
         MessageBoxUsingResourceString(
             g_hInstance,
@@ -304,67 +215,52 @@ void SaveTaskListFile(wchar_t *filePath)
             IDS_FAILED_TO_ALLOCATE_MEMORY_MSG
         );
 
-        return;
+        return FALSE;
     }
 
-    for (int i = 0; i < g_appState->entryCount; i ++)
-    {
-        taskEntries[i] = g_appState->entries[i].taskEntry;
-    }
+    ofn->lStructSize     = sizeof(OPENFILENAMEW);
+    ofn->hwndOwner       = g_mainDialog;
+    ofn->lpstrFile       = szFile;
+    ofn->lpstrFile[0]    = L'\0';
+    ofn->nMaxFile        = sizeof(szFile);
+    ofn->lpstrFilter     = L"Todo List Files (*.tdl)\0*.tdl\0\0";
+    ofn->lpstrDefExt     = L"tdl";
+    ofn->nFilterIndex    = 1;
+    ofn->lpstrFileTitle  = NULL;
+    ofn->nMaxFileTitle   = 0;
+    ofn->lpstrInitialDir = NULL;
+    ofn->Flags           = flags;
 
-    TaskListFile taskListFile  = {0};
-    taskListFile.friendlyName  = g_appState->currentTaskListFriendlyName;
-    taskListFile.taskEntries   = taskEntries;
-    taskListFile.taskItemCount = g_appState->entryCount;
-
-    if (!WriteTaskListFile(filePath, &taskListFile))
-    {
-        return;
-    }
-
-    if (g_appState->currentTaskListFilePath != NULL)
-    {
-        free(g_appState->currentTaskListFilePath);
-        g_appState->currentTaskListFilePath = NULL;
-    }
-    g_appState->currentTaskListFilePath = _wcsdup(filePath);
-
-    ThereAreNoUnsavedChanges();
+    return TRUE;
 }
 
 BOOL SaveTaskListAs(void)
 {
-    wchar_t szFile[1024];
-
-    OPENFILENAMEW ofn   = {0};
-    ofn.lStructSize     = sizeof(OPENFILENAMEW);
-    ofn.hwndOwner       = g_mainDialog;
-    ofn.lpstrFile       = szFile;
-    ofn.lpstrFile[0]    = L'\0';
-    ofn.nMaxFile        = sizeof(szFile);
-    ofn.lpstrFilter     = L"Todo List Files (*.tdl)\0*.tdl\0\0";
-    ofn.lpstrDefExt     = L"tdl";
-    ofn.nFilterIndex    = 1;
-    ofn.lpstrFileTitle  = NULL;
-    ofn.nMaxFileTitle   = 0;
-    ofn.lpstrInitialDir = NULL;
-    ofn.Flags           = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT;
-
-    if (!GetSaveFileNameW(&ofn))
+    OPENFILENAMEW ofn = {0};
+    if (!CreateTodoListFileOFN(&ofn, OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT))
     {
         return FALSE;
     }
 
+    if (!GetSaveFileNameW(&ofn))
+    {
+        free(ofn.lpstrFile);
+
+        return FALSE;
+    }
+
     SaveTaskListFile(ofn.lpstrFile);
+
+    free(ofn.lpstrFile);
 
     return TRUE;
 }
 
 BOOL SaveTaskList(void)
 {
-    if (g_appState->currentTaskListFilePath != NULL)
+    if (GetCurrentTaskListFilePath() != NULL)
     {
-        SaveTaskListFile(g_appState->currentTaskListFilePath);
+        SaveTaskListFile(GetCurrentTaskListFilePath());
 
         return TRUE;
     }
@@ -376,7 +272,7 @@ BOOL SaveTaskList(void)
 
 BOOL ConfirmSaveChangesBeforeContinuing(void)
 {
-    if (g_appState->hasUnsavedChanges)
+    if (HasUnsavedChanges())
     {
         int promptResult = MessageBoxUsingResourceString(
             g_hInstance,
@@ -414,104 +310,89 @@ void NewFile(void)
 
     DeleteTaskEntries();
 
-    if (g_appState->currentTaskListFilePath != NULL)
-    {
-        free(g_appState->currentTaskListFilePath);
-        g_appState->currentTaskListFilePath = NULL;
-    }
-
-    if (g_appState->currentTaskListFriendlyName != NULL)
-    {
-        free(g_appState->currentTaskListFriendlyName);
-        g_appState->currentTaskListFriendlyName = NULL;
-    }
+    UpdateCurrentTaskListFilePath(NULL);
+    UpdateCurrentTaskListFriendlyName(NULL);
 
     ThereAreNoUnsavedChanges();
 }
 
 void OpenTaskListFile(void)
 {
-    wchar_t szFile[1024];
+    OPENFILENAMEW ofn = {0};
+    TaskListFile taskListFile = {0};
 
-    OPENFILENAMEW ofn   = {0};
-    ofn.lStructSize     = sizeof(OPENFILENAMEW);
-    ofn.hwndOwner       = g_mainDialog;
-    ofn.lpstrFile       = szFile;
-    ofn.lpstrFile[0]    = L'\0';
-    ofn.nMaxFile        = sizeof(szFile);
-    ofn.lpstrFilter     = L"Todo List Files (*.tdl)\0*.tdl\0\0";
-    ofn.lpstrDefExt     = L"tdl";
-    ofn.nFilterIndex    = 1;
-    ofn.lpstrFileTitle  = NULL;
-    ofn.nMaxFileTitle   = 0;
-    ofn.lpstrInitialDir = NULL;
-    ofn.Flags           = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-    if (!GetOpenFileNameW(&ofn))
+    if (!CreateTodoListFileOFN(&ofn, OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST))
     {
         return;
     }
 
-    TaskListFile taskListFile = {0};
+    if (!GetOpenFileNameW(&ofn))
+    {
+        goto CleanUp;
+    }
+
     if (!ReadTaskListFile(ofn.lpstrFile, &taskListFile))
     {
-        return;
+        goto CleanUp;
     }
 
     if (!ConfirmSaveChangesBeforeContinuing())
     {
-        return;
+        goto CleanUp;
     }
 
     DeleteTaskEntries();
 
     for (int i = 0; i < taskListFile.taskItemCount; i ++)
     {
-        AddTask(&taskListFile.taskEntries[i]);
+        AddTaskEntry(&taskListFile.taskEntries[i]);
     }
 
-    if (g_appState->currentTaskListFilePath != NULL)
-    {
-        free(g_appState->currentTaskListFilePath);
-        g_appState->currentTaskListFilePath = NULL;
-    }
-    g_appState->currentTaskListFilePath = _wcsdup(ofn.lpstrFile);
-
-    if (g_appState->currentTaskListFriendlyName != NULL)
-    {
-        free(g_appState->currentTaskListFriendlyName);
-        g_appState->currentTaskListFriendlyName = NULL;
-    }
-    g_appState->currentTaskListFriendlyName = _wcsdup(taskListFile.friendlyName);
-
-    for (int i = 0; i < taskListFile.taskItemCount; i ++)
-    {
-        free(taskListFile.taskEntries[i].taskDetail);
-        taskListFile.taskEntries[i].taskDetail = NULL;
-    }
-    free(taskListFile.taskEntries);
-    taskListFile.taskEntries = NULL;
-
-    free(taskListFile.friendlyName);
-    taskListFile.friendlyName = NULL;
+    UpdateCurrentTaskListFilePath(ofn.lpstrFile);
+    UpdateCurrentTaskListFriendlyName(taskListFile.friendlyName);
 
     ThereAreNoUnsavedChanges();
+
+CleanUp:
+    if (ofn.lpstrFile != NULL)
+    {
+        free(ofn.lpstrFile);
+        ofn.lpstrFile = NULL;
+    }
+    if (taskListFile.taskEntries != NULL)
+    {
+        for (int i = 0; i < taskListFile.taskItemCount; i ++)
+        {
+            if (taskListFile.taskEntries[i].taskDetail != NULL)
+            {
+                free(taskListFile.taskEntries[i].taskDetail);
+                taskListFile.taskEntries[i].taskDetail = NULL;
+            }
+        }
+        free(taskListFile.taskEntries);
+        taskListFile.taskEntries = NULL;
+    }
+    if (taskListFile.friendlyName != NULL)
+    {
+        free(taskListFile.friendlyName);
+        taskListFile.friendlyName = NULL;
+    }
 }
 
 void ToggleAlwaysOnTop(void)
 {
-    g_appState->topMostEnabled = !g_appState->topMostEnabled;
+    UpdateTopMostEnabled(!GetTopMostEnabled());
 
     MENUITEMINFOW itemInfo = {0};
     itemInfo.cbSize        = sizeof(MENUITEMINFOW);
     itemInfo.fMask         = MIIM_STATE;
     GetMenuItemInfoW(g_mainDialogMenu, ID_VIEW_ALWAYSONTOP, FALSE, &itemInfo);
 
-    itemInfo.fState = g_appState->topMostEnabled ? MFS_CHECKED : MFS_UNCHECKED;
+    itemInfo.fState = GetTopMostEnabled() ? MFS_CHECKED : MFS_UNCHECKED;
 
     SetMenuItemInfoW(g_mainDialogMenu, ID_VIEW_ALWAYSONTOP, FALSE, &itemInfo);
 
-    if (g_appState->topMostEnabled)
+    if (GetTopMostEnabled())
     {
         SetWindowPos(g_mainDialog, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     }
@@ -537,7 +418,7 @@ void SelectTaskAreaFont(void)
     cf.hwndOwner   = g_mainDialog;
     cf.lpLogFont   = &lf;
     cf.rgbColors   = RGB(0, 0, 0);
-    cf.Flags       = CF_SCREENFONTS | CF_FORCEFONTEXIST | CF_INITTOLOGFONTSTRUCT;
+    cf.Flags       = CF_SCREENFONTS | CF_FORCEFONTEXIST | CF_INITTOLOGFONTSTRUCT | CF_NOSCRIPTSEL;
 
     if (!ChooseFontW(&cf))
     {
@@ -550,12 +431,7 @@ void SelectTaskAreaFont(void)
         return;
     }
 
-    if (g_appState->customTextListFont != NULL)
-    {
-        DeleteObject(g_appState->customTextListFont);
-        g_appState->customTextListFont = NULL;
-    }
-    g_appState->customTextListFont = newFont;
+    UpdateCustomTextListFont(newFont);
 
     SendMessageW(
         g_taskFrame,
@@ -651,9 +527,9 @@ INT_PTR CALLBACK FriendlyNameChangeDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wP
     }
     else if (DIALOG_INIT_COND(wMsg))
     {
-        if (g_appState->currentTaskListFilePath != NULL)
+        if (GetCurrentTaskListFriendlyName() != NULL)
         {
-            SetDlgItemTextW(hwnd, IDC_NEWTASKLISTNAME, g_appState->currentTaskListFriendlyName);
+            SetDlgItemTextW(hwnd, IDC_NEWTASKLISTNAME, GetCurrentTaskListFriendlyName());
         }
 
         SetFocus(GetDlgItem(hwnd, IDC_NEWTASKLISTNAME));
@@ -665,15 +541,13 @@ INT_PTR CALLBACK FriendlyNameChangeDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wP
         wchar_t newName[1024];
         GetDlgItemTextW(hwnd, IDC_NEWTASKLISTNAME, newName, 1024);
 
-        if (g_appState->currentTaskListFriendlyName != NULL)
-        {
-            free(g_appState->currentTaskListFriendlyName);
-            g_appState->currentTaskListFriendlyName = NULL;
-        }
-
         if (wcslen(newName) != 0 && !IsWhiteSpaceOnly(newName))
         {
-            g_appState->currentTaskListFriendlyName = _wcsdup(newName);
+            UpdateCurrentTaskListFriendlyName(newName);
+        }
+        else
+        {
+            UpdateCurrentTaskListFriendlyName(NULL);
         }
 
         ThereAreUnsavedChanges();
@@ -800,45 +674,116 @@ INT_PTR CALLBACK MainDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM l
                 LoadMenuW(g_hInstance, MAKEINTRESOURCEW(IDR_TASKITEMRIGHTCLICKMENU));
             if (g_taskItemRightClickMenu == NULL)
             {
-                EndDialog(g_mainDialog, 1);
-                PostQuitMessage(1);
-
-                return TRUE;
+                goto Failed;
             }
 
-            g_appState = malloc(sizeof(TaskListState));
-            if (g_appState == NULL)
+            if (!InitialiseAppState(g_hInstance, g_mainDialog))
+            {
+                goto Failed;
+            }
+
+            IniFile iniFile;
+            if (!ReadIniFile(L"C:\\Users\\tsasaki\\Desktop\\test.ini", &iniFile))
             {
                 MessageBoxUsingResourceString(
                     g_hInstance,
                     g_mainDialog,
                     MB_ICONERROR | MB_OK,
-                    IDS_MEMORY_ERROR_TITLE,
-                    IDS_FAILED_TO_ALLOCATE_MEMORY_MSG
+                    IDS_CONFIG_ERROR_TITLE,
+                    IDS_FAILED_TO_READ_CONFIG_FILE_MSG,
+                    GetLastIniError()
                 );
-
-                EndDialog(g_mainDialog, 1);
-                PostQuitMessage(1);
-
-                return TRUE;
+        
+                goto Failed;
             }
+        
+            BOOL topMostEnabled;
+            BOOL defaultTopMostEnabled = TRUE;
+            if (!GetBoolFromIni(&iniFile, L"General", L"AlwaysOnTop", &topMostEnabled))
+            {
+                if (!RecoverFromIniErrorUsingDefaultValue((void *) &topMostEnabled, (void *) &defaultTopMostEnabled, TRUE))
+                {
+                    MessageBoxUsingResourceString(
+                        g_hInstance,
+                        g_mainDialog,
+                        MB_ICONERROR | MB_OK,
+                        IDS_CONFIG_ERROR_TITLE,
+                        IDS_INI_ERROR_MSG,
+                        L"General.AlwaysOnTop",
+                        GetLastIniError()
+                    );
+        
+                    goto Failed;
+                }
+            }
+        
+            wchar_t *fontName;
+            wchar_t *defaultFontName = L"Tahoma";
+            if (!GetStringFromIni(&iniFile, L"Font", L"FontName", &fontName))
+            {
+                if (!RecoverFromIniErrorUsingDefaultValue((void *) &fontName, (void *) defaultFontName, TRUE))
+                {
+                    MessageBoxUsingResourceString(
+                        g_hInstance,
+                        g_mainDialog,
+                        MB_ICONERROR | MB_OK,
+                        IDS_CONFIG_ERROR_TITLE,
+                        IDS_INI_ERROR_MSG,
+                        L"Font.FontName",
+                        GetLastIniError()
+                    );
+        
+                    goto Failed;
+                }
+            }
+        
+            LONG fontSize;
+            LONG defaultFontSize = 8;
+            if (!GetLongFromIni(&iniFile, L"Font", L"FontSize", &fontSize))
+            {
+                if (!RecoverFromIniErrorUsingDefaultValue((void *) &fontSize, (void *) &defaultFontSize, TRUE))
+                {
+                    MessageBoxUsingResourceString(
+                        g_hInstance,
+                        g_mainDialog,
+                        MB_ICONERROR | MB_OK,
+                        IDS_CONFIG_ERROR_TITLE,
+                        IDS_INI_ERROR_MSG,
+                        L"Font.FontSize",
+                        GetLastIniError()
+                    );
 
-            g_appState->entries                      = NULL;
-            g_appState->currentTaskListFilePath      = NULL;
-            g_appState->currentTaskListFriendlyName  = NULL;
-            g_appState->hasUnsavedChanges            = FALSE;
-            g_appState->entryCount                   = 0;
-            g_appState->entryCapacity                = 0;
-            g_appState->customTextListFont           = NULL;
-            g_appState->topMostEnabled               = FALSE;
-            g_appState->taskItemRightClickMenuTarget = -1;
+                    goto Failed;
+                }
+            }
+      
+            UpdateTopMostEnabled(!topMostEnabled);
+            ToggleAlwaysOnTop();
+        
+            FreeIniFile(&iniFile);
 
             NewFile();
-            ToggleAlwaysOnTop();
 
             SetFocus(g_entry);
 
             return FALSE;
+
+Failed:
+            if (g_taskItemRightClickMenu != NULL)
+            {
+                DestroyMenu(g_taskItemRightClickMenu);
+                g_taskItemRightClickMenu = NULL;
+            }
+
+            RemoveOriginalSizeProp(g_mainDialog);
+            RemoveOriginalSizeProp(g_addButton);
+            RemoveOriginalSizeProp(g_entry);
+            RemoveOriginalSizeProp(g_taskFrame);
+
+            EndDialog(g_mainDialog, 1);
+            PostQuitMessage(1);
+
+            return TRUE;
         }
         case WM_GETMINMAXINFO: {
             MINMAXINFO *minMaxInfo = (MINMAXINFO *)lParam;
@@ -889,12 +834,12 @@ INT_PTR CALLBACK MainDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM l
                     return TRUE;
                 }
                 case IDOK: {
-                    GetEntryAndAddTask();
+                    GetEntryContentAndAddTask();
 
                     return TRUE;
                 }
                 case IDC_ADDBUTTON: {
-                    GetEntryAndAddTask();
+                    GetEntryContentAndAddTask();
 
                     return TRUE;
                 }
@@ -954,7 +899,7 @@ INT_PTR CALLBACK MainDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM l
                     return TRUE;
                 }
                 case ID_TASKITEMRIGHTCLICKMENU_MARKASCOMPLETED: {
-                    ToggleTaskStatus(g_appState->taskItemRightClickMenuTarget);
+                    ToggleTaskStatus(GetTaskItemRightClickMenuTarget());
 
                     return TRUE;
                 }
@@ -964,13 +909,13 @@ INT_PTR CALLBACK MainDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM l
                         MAKEINTRESOURCEW(IDD_TASKDETAILEDITDIALOG),
                         g_mainDialog,
                         TaskDetailEditDialogDlgProc,
-                        (LPARAM) g_appState->taskItemRightClickMenuTarget
+                        (LPARAM) GetTaskItemRightClickMenuTarget()
                     );
 
                     return TRUE;
                 }
                 case ID_TASKITEMRIGHTCLICKMENU_DELETE: {
-                    AskAndDeleteTaskEntry(g_appState->taskItemRightClickMenuTarget);
+                    AskAndDeleteTaskEntry(GetTaskItemRightClickMenuTarget());
 
                     return TRUE;
                 }
@@ -1037,7 +982,7 @@ INT_PTR CALLBACK MainDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM l
                 &markAsCompletedInfo
             );
 
-            g_appState->taskItemRightClickMenuTarget = textListUniqueId;
+            SetTaskItemRightClickMenuTarget(textListUniqueId);
 
             ClientToScreen(g_taskFrame, &point);
             TrackPopupMenu(
@@ -1074,24 +1019,8 @@ INT_PTR CALLBACK MainDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM l
                 DestroyMenu(g_taskItemRightClickMenu);
                 g_taskItemRightClickMenu = NULL;
             }
-            
-            DeleteTaskEntries();
-
-            if (g_appState->currentTaskListFilePath != NULL)
-            {
-                free(g_appState->currentTaskListFilePath);
-                g_appState->currentTaskListFilePath = NULL;
-            }
-            if (g_appState->currentTaskListFriendlyName != NULL)
-            {
-                free(g_appState->currentTaskListFriendlyName);
-                g_appState->currentTaskListFriendlyName = NULL;
-            }
-            if (g_appState->customTextListFont != NULL)
-            {
-                DeleteObject(g_appState->customTextListFont);
-                g_appState->customTextListFont = NULL;
-            }
+           
+            FreeAppState();
 
             return TRUE;
         }
@@ -1110,31 +1039,6 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
     g_hInstance = hInstance;
 
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-
-    IniFile iniFile;
-    if (!ReadIniFile(L"C:\\Users\\tsasaki\\Desktop\\test.ini", &iniFile))
-    {
-        wchar_t msg[5];
-        swprintf(msg, 5, L"%d", GetLastIniError());
-        MessageBoxW(NULL, msg, L"INI TEST", MB_OK);
-        return 0;
-    }
-
-    wchar_t *test;
-    if (!GetStringFromIni(&iniFile, L"TestSection", L"TestKey", &test))
-    {
-        if (!RecoverFromIniErrorUsingDefaultValue((void* )&test, &L"default", TRUE))
-        {
-            wchar_t msg[5];
-            swprintf(msg, 5, L"%d", GetLastIniError());
-            MessageBoxW(NULL, msg, L"INI TEST", MB_OK);
-            return 0;
-        }
-    }
-
-    MessageBoxW(NULL, test, test, MB_OK);
-
-    FreeIniFile(&iniFile);
 
     InitialiseTextListClass(hInstance);
 
