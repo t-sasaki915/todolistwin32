@@ -2,10 +2,10 @@
 #include <wchar.h>
 
 #include "app_state.h"
+#include "config.h"
 #include "text_list.h"
 #include "task_list_file.h"
 #include "layout.h"
-#include "simple_ini.h"
 #include "util.h"
 #include "resource.h"
 
@@ -372,6 +372,17 @@ void ToggleAlwaysOnTop(void)
     }
 }
 
+void SetTextListFont(HFONT newFont)
+{
+    UpdateCustomTextListFont(newFont);
+    SendMessageW(
+        g_taskFrame,
+        WM_SETFONT,
+        (WPARAM) newFont,
+        (LPARAM) TRUE
+    );
+}
+
 void SelectTaskAreaFont(void)
 {
     HFONT currentFont = (HFONT) SendMessageW(g_taskFrame, WM_GETFONT, 0, 0);
@@ -401,14 +412,7 @@ void SelectTaskAreaFont(void)
         return;
     }
 
-    UpdateCustomTextListFont(newFont);
-
-    SendMessageW(
-        g_taskFrame,
-        WM_SETFONT,
-        (WPARAM) newFont,
-        (LPARAM) TRUE
-    );
+    SetTextListFont(newFont);
 }
 
 void ToggleTaskStatus(int textListUniqueId)
@@ -652,86 +656,17 @@ INT_PTR CALLBACK MainDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM l
                 goto Failed;
             }
 
-            IniFile iniFile;
-            if (!ReadIniFile(L"C:\\Users\\tsasaki\\Desktop\\test.ini", &iniFile))
+            ConfigData configData = {0};
+            if (!LoadConfigData(&configData))
             {
-                MessageBoxUsingResourceString(
-                    g_hInstance,
-                    g_mainDialog,
-                    MB_ICONERROR | MB_OK,
-                    IDS_CONFIG_ERROR_TITLE,
-                    IDS_FAILED_TO_READ_CONFIG_FILE_MSG,
-                    GetLastIniError()
-                );
-        
                 goto Failed;
             }
-        
-            BOOL topMostEnabled;
-            BOOL defaultTopMostEnabled = TRUE;
-            if (!GetBoolFromIni(&iniFile, L"General", L"AlwaysOnTop", &topMostEnabled))
-            {
-                if (!RecoverFromIniErrorUsingDefaultValue((void *) &topMostEnabled, (void *) &defaultTopMostEnabled, TRUE))
-                {
-                    MessageBoxUsingResourceString(
-                        g_hInstance,
-                        g_mainDialog,
-                        MB_ICONERROR | MB_OK,
-                        IDS_CONFIG_ERROR_TITLE,
-                        IDS_INI_ERROR_MSG,
-                        L"General.AlwaysOnTop",
-                        GetLastIniError()
-                    );
-        
-                    goto Failed;
-                }
-            }
-        
-            wchar_t *fontName;
-            wchar_t *defaultFontName = L"Tahoma";
-            if (!GetStringFromIni(&iniFile, L"Font", L"FontName", &fontName))
-            {
-                if (!RecoverFromIniErrorUsingDefaultValue((void *) &fontName, (void *) defaultFontName, TRUE))
-                {
-                    MessageBoxUsingResourceString(
-                        g_hInstance,
-                        g_mainDialog,
-                        MB_ICONERROR | MB_OK,
-                        IDS_CONFIG_ERROR_TITLE,
-                        IDS_INI_ERROR_MSG,
-                        L"Font.FontName",
-                        GetLastIniError()
-                    );
-        
-                    goto Failed;
-                }
-            }
-        
-            LONG fontSize;
-            LONG defaultFontSize = 8;
-            if (!GetLongFromIni(&iniFile, L"Font", L"FontSize", &fontSize))
-            {
-                if (!RecoverFromIniErrorUsingDefaultValue((void *) &fontSize, (void *) &defaultFontSize, TRUE))
-                {
-                    MessageBoxUsingResourceString(
-                        g_hInstance,
-                        g_mainDialog,
-                        MB_ICONERROR | MB_OK,
-                        IDS_CONFIG_ERROR_TITLE,
-                        IDS_INI_ERROR_MSG,
-                        L"Font.FontSize",
-                        GetLastIniError()
-                    );
 
-                    goto Failed;
-                }
-            }
-      
-            UpdateTopMostEnabled(!topMostEnabled);
+            UpdateTopMostEnabled(!configData.topMostEnabled);
             ToggleAlwaysOnTop();
-        
-            FreeIniFile(&iniFile);
 
+            SetTextListFont(configData.customTextListFont);
+        
             NewFile();
 
             SetFocus(g_entry);

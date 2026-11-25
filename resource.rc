@@ -111,6 +111,7 @@ BEGIN
     IDS_CONFIG_ERROR_TITLE                "Configuration Error"
     IDS_FAILED_TO_READ_CONFIG_FILE_MSG    "Failed to read the configuration file: %d."
     IDS_INI_ERROR_MSG                     "Ini Error while reading %ls: %d"
+    IDS_FAILED_TO_CREATE_FONT_MSG         "Failed to create a font: %d."
 END
 
 VS_VERSION_INFO VERSIONINFO
