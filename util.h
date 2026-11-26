@@ -19,5 +19,9 @@ int CalculateFontHeight(HWND hwnd, HFONT font);
 
 int CalculateAverageCharWidth(HWND hwnd, HFONT font);
 
+int PointSizeToHeight(HWND hwnd, int pointSize);
+
+int HeightToPointSize(HWND hwnd, int height);
+
 #endif
 

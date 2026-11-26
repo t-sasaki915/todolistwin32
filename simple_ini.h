@@ -78,5 +78,11 @@ BOOL SubstituteBoolDefault(BOOL *resultPtr, BOOL defValPtr, BOOL substituteEmpty
 
 BOOL SubstituteLongDefault(LONG *resultPtr, LONG defValPtr, BOOL substituteEmptyValue);
 
+BOOL WriteIniValueString(const wchar_t *filePath, wchar_t *section, wchar_t *key, wchar_t *value);
+
+BOOL WriteIniValueBool(const wchar_t *filePath, wchar_t *section, wchar_t *key, BOOL value);
+
+BOOL WriteIniValueLong(const wchar_t *filePath, wchar_t *section, wchar_t *key, LONG value);
+
 #endif
 

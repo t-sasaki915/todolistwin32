@@ -349,20 +349,30 @@ CleanUp:
     }
 }
 
-void ToggleAlwaysOnTop(void)
+void ToggleAlwaysOnTop(BOOL writeConfig)
 {
-    UpdateTopMostEnabled(!GetTopMostEnabled());
+    BOOL newStatus = !GetTopMostEnabled();
+
+    if (writeConfig)
+    {
+        if (!SetTopMostEnabledConfig(newStatus))
+        {
+            return;
+        }
+    }
+
+    UpdateTopMostEnabled(newStatus);
 
     MENUITEMINFOW itemInfo = {0};
     itemInfo.cbSize        = sizeof(MENUITEMINFOW);
     itemInfo.fMask         = MIIM_STATE;
     GetMenuItemInfoW(g_mainDialogMenu, ID_VIEW_ALWAYSONTOP, FALSE, &itemInfo);
 
-    itemInfo.fState = GetTopMostEnabled() ? MFS_CHECKED : MFS_UNCHECKED;
+    itemInfo.fState = newStatus ? MFS_CHECKED : MFS_UNCHECKED;
 
     SetMenuItemInfoW(g_mainDialogMenu, ID_VIEW_ALWAYSONTOP, FALSE, &itemInfo);
 
-    if (GetTopMostEnabled())
+    if (newStatus)
     {
         SetWindowPos(g_mainDialog, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     }
@@ -408,6 +418,11 @@ void SelectTaskAreaFont(void)
 
     HFONT newFont = CreateFontIndirectW(cf.lpLogFont);
     if (newFont == NULL)
+    {
+        return;
+    }
+
+    if (!SetCustomTextListFontConfig(newFont))
     {
         return;
     }
@@ -631,9 +646,6 @@ INT_PTR CALLBACK MainDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM l
     switch (wMsg)
     {
         case WM_INITDIALOG: {
-            InitialiseTaskListFile(g_hInstance, hwnd);
-            InitialiseConfig(g_hInstance, hwnd);
-
             g_mainDialog     = hwnd;
             g_addButton      = GetDlgItem(g_mainDialog, IDC_ADDBUTTON);
             g_entry          = GetDlgItem(g_mainDialog, IDC_ENTRY);
@@ -652,6 +664,12 @@ INT_PTR CALLBACK MainDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM l
                 goto Failed;
             }
 
+            InitialiseTaskListFile(g_hInstance, hwnd);
+            if (!InitialiseConfig(g_hInstance, hwnd))
+            {
+                goto Failed;
+            }
+
             if (!InitialiseAppState(g_hInstance, g_mainDialog))
             {
                 goto Failed;
@@ -664,7 +682,7 @@ INT_PTR CALLBACK MainDialogDlgProc(HWND hwnd, UINT wMsg, WPARAM wParam, LPARAM l
             }
 
             UpdateTopMostEnabled(!configData.topMostEnabled);
-            ToggleAlwaysOnTop();
+            ToggleAlwaysOnTop(FALSE);
 
             SetTextListFont(configData.customTextListFont);
         
@@ -685,6 +703,9 @@ Failed:
             RemoveOriginalSizeProp(g_addButton);
             RemoveOriginalSizeProp(g_entry);
             RemoveOriginalSizeProp(g_taskFrame);
+
+            FreeConfigFilePath();
+            FreeAppState();
 
             EndDialog(g_mainDialog, 1);
             PostQuitMessage(1);
@@ -785,7 +806,7 @@ Failed:
                     return TRUE;
                 }
                 case ID_VIEW_ALWAYSONTOP: {
-                    ToggleAlwaysOnTop();
+                    ToggleAlwaysOnTop(TRUE);
 
                     return TRUE;
                 }
@@ -925,7 +946,8 @@ Failed:
                 DestroyMenu(g_taskItemRightClickMenu);
                 g_taskItemRightClickMenu = NULL;
             }
-           
+          
+            FreeConfigFilePath();
             FreeAppState();
 
             return TRUE;

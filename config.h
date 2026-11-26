@@ -9,9 +9,15 @@ typedef struct
     HFONT customTextListFont;
 } ConfigData;
 
-void InitialiseConfig(HINSTANCE hInstance, HWND mainHWND);
+BOOL InitialiseConfig(HINSTANCE hInstance, HWND mainHWND);
 
 BOOL LoadConfigData(ConfigData *data);
+
+BOOL SetTopMostEnabledConfig(BOOL enabled);
+
+BOOL SetCustomTextListFontConfig(HFONT font);
+
+void FreeConfigFilePath(void);
 
 #endif
 

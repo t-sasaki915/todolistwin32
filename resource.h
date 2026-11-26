@@ -58,7 +58,8 @@
 #define IDS_INFORMATION_TITLE                     6020
 #define IDS_CONFIG_ERROR_TITLE                    6021
 #define IDS_FAILED_TO_READ_CONFIG_FILE_MSG        6022
-#define IDS_INI_ERROR_MSG                         6023
+#define IDS_INI_ERROR_READ_MSG                    6023
 #define IDS_FAILED_TO_CREATE_FONT_MSG             6024
+#define IDS_INI_ERROR_WRITE_MSG                   6025
 
 #endif

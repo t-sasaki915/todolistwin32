@@ -1069,3 +1069,36 @@ BOOL SubstituteLongDefault(LONG *resultPtr, LONG defValPtr, BOOL substituteEmpty
     return FALSE;
 }
 
+BOOL WriteIniValueString(const wchar_t *filePath, wchar_t *section, wchar_t *key, wchar_t *value)
+{
+    wchar_t test[1024];
+    swprintf(test, 1024, L"FilePath: %ls\nSection: %ls\nKey: %ls\nValue: %ls", filePath, section, key, value);
+
+    MessageBoxW(NULL, test, L"WRITE", MB_OK);
+
+    return TRUE;
+}
+
+BOOL WriteIniValueBool(const wchar_t *filePath, wchar_t *section, wchar_t *key, BOOL value)
+{
+    return WriteIniValueString(
+        filePath,
+        section,
+        key,
+        value ? L"TRUE" : L"FALSE"
+    );
+}
+
+BOOL WriteIniValueLong(const wchar_t *filePath, wchar_t *section, wchar_t *key, LONG value)
+{
+    wchar_t longStr[32];
+    swprintf_s(longStr, 32, L"%ld", value);
+    
+    return WriteIniValueString(
+        filePath,
+        section,
+        key,
+        longStr
+    );
+}
+

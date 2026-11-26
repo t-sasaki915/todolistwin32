@@ -163,3 +163,23 @@ int CalculateAverageCharWidth(HWND hwnd, HFONT font)
     return tm.tmAveCharWidth;
 }
 
+int PointSizeToHeight(HWND hwnd, int pointSize)
+{
+    HDC hdc = GetDC(hwnd);
+    int dpiY = GetDeviceCaps(hdc, LOGPIXELSY);
+
+    ReleaseDC(hwnd, hdc);
+
+    return -MulDiv(pointSize, dpiY, 72);
+}
+
+int HeightToPointSize(HWND hwnd, int height)
+{
+    HDC hdc = GetDC(hwnd);
+    int dpiY = GetDeviceCaps(hdc, LOGPIXELSY);
+
+    ReleaseDC(hwnd, hdc);
+
+    return MulDiv(-height, 72, dpiY);
+}
+
