@@ -17,6 +17,10 @@
         ARRAY_COUNT(((IniSection[]){ __VA_ARGS__ })) \
     }
 
+#define CONSOLE_COLOR_DEFAULT 7
+#define CONSOLE_COLOR_GREEN   10
+#define CONSOLE_COLOR_RED     12
+
 static int g_numberOfSuccess = 0;
 static int g_numberOfFailure = 0;
 
@@ -89,30 +93,38 @@ void ExpectSuccess(wchar_t *testName, wchar_t *input, IniFile *expectedStruct)
     printf("Test Case %ls is expected to be succeeded.\n", testName);
     printf("Input:\n%ls\n", input);
 
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
     IniFile iniFile = {0};
     if (ReadIniFileWchar(input, &iniFile))
     {
         if (AreIniFilesEquivalent(expectedStruct, &iniFile))
         {
+            SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_GREEN);
             printf("Test Success: ReadIniFileWchar succeeded with expected structure:\n");
             PrettyPrintIniFile(expectedStruct);
+            SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_DEFAULT);
 
             g_numberOfSuccess ++;
         }
         else
         {
+            SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_RED);
             printf("Test Failure: ReadIniFileWchar succeeded with unexpected structure:\n");
             PrettyPrintIniFile(&iniFile);
             printf("Expected structure:\n");
             PrettyPrintIniFile(expectedStruct);
+            SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_DEFAULT);
 
             g_numberOfFailure ++;
         }
     }
     else
     {
+        SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_RED);
         printf("Test Failure: ReadIniFileWchar failed unexpectedly with IniError %d. Expected:\n", GetLastIniError());
         PrettyPrintIniFile(expectedStruct);
+        SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_DEFAULT);
 
         g_numberOfFailure ++;
     }
@@ -127,27 +139,36 @@ void ExpectFailure(wchar_t *testName, wchar_t *input, IniError expectedError)
     printf("Test Case %ls is expected to be failed.\n", testName);
     printf("Input:\n%ls\n\n", input);
 
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
     IniFile iniFile = {0};
     if (!ReadIniFileWchar(input, &iniFile))
     {
         IniError actualError = GetLastIniError();
         if (actualError == expectedError)
         {
+            SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_GREEN);
             printf("Test Success: ReadIniFileWchar failed with expected IniError %d.\n", expectedError);
+            SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_DEFAULT);
 
             g_numberOfSuccess ++;
         }
         else
         {
+            SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_RED);
             printf("Test Failure: ReadIniFileWchar failed with unexpected IniError %d. (Expected %d)\n", actualError, expectedError);
+            SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_DEFAULT);
 
             g_numberOfFailure ++;
         }
     }
     else
     {
+        SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_RED);
         printf("Test Failure: ReadIniFileWchar succeed unexpectedly. (Expected Ini Error %d)\nIniFile structure:\n", expectedError);
         PrettyPrintIniFile(&iniFile);
+        SetConsoleTextAttribute(hConsole, CONSOLE_COLOR_DEFAULT);
+
         FreeIniFile(&iniFile);
 
         g_numberOfFailure ++;
