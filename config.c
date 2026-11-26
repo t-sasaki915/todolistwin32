@@ -1,10 +1,14 @@
 #include "config.h"
 
 #include <windows.h>
+#include <shlwapi.h>
 
 #include "simple_ini.h"
 #include "resource.h"
 #include "util.h"
+
+#define CONFIG_FILE_NAME_LENGTH 10
+#define CONFIG_FILE_NAME L"config.ini"
 
 typedef struct
 {
@@ -76,10 +80,80 @@ BOOL CreateConfigDataFromRawConfig(RawConfigData *rawData, ConfigData *data)
     return TRUE;
 }
 
+wchar_t *GetConfigFilePath(void)
+{
+    wchar_t modulePath[MAX_PATH];
+    GetModuleFileNameW(NULL, modulePath, MAX_PATH);
+
+    int modulePathLength = wcslen(modulePath);
+
+    int lastBackslashIndex = 0;
+    for (int i = modulePathLength - 1; i >= 0; i --)
+    {
+        if (modulePath[i] == L'\\')
+        {
+            lastBackslashIndex = i;
+            break;
+        }
+    }
+
+    int parentPathLength = lastBackslashIndex + 1;
+    int configPathLength = parentPathLength + CONFIG_FILE_NAME_LENGTH;
+
+    wchar_t *configFilePath = calloc(configPathLength + 1, sizeof(wchar_t));
+    if (configFilePath == NULL)
+    {
+        MessageBoxUsingResourceString(
+            g_hInstance,
+            g_mainHWND,
+            MB_ICONERROR | MB_OK,
+            IDS_MEMORY_ERROR_TITLE,
+            IDS_FAILED_TO_ALLOCATE_MEMORY_MSG
+        );
+
+        return NULL;
+    }
+
+    memcpy(
+        configFilePath,
+        modulePath,
+        parentPathLength * sizeof(wchar_t)
+    );
+
+    memcpy(
+        &(configFilePath[lastBackslashIndex + 1]),
+        CONFIG_FILE_NAME,
+        CONFIG_FILE_NAME_LENGTH * sizeof(wchar_t)
+    );
+
+    configFilePath[configPathLength] = L'\0';
+
+    return configFilePath;
+}
+
 BOOL LoadConfigData(ConfigData *data)
 {
+    wchar_t *configFilePath = GetConfigFilePath();
+    if (configFilePath == NULL)
+    {
+        return FALSE;
+    }
+
+    if (!PathFileExistsW(configFilePath))
+    {
+        free(configFilePath);
+        configFilePath = NULL;
+
+        if (!CreateConfigDataFromRawConfig(&g_defConfig, data))
+        {
+            return FALSE;
+        }
+
+        return TRUE;
+    }
+
     IniFile iniFile;
-    if (!ReadIniFile(L"C:\\Users\\tsasaki\\Desktop\\test.ini", &iniFile))
+    if (!ReadIniFile(configFilePath, &iniFile))
     {
         MessageBoxUsingResourceString(
             g_hInstance,
@@ -90,8 +164,14 @@ BOOL LoadConfigData(ConfigData *data)
             GetLastIniError()
         );
 
+        free(configFilePath);
+        configFilePath = NULL;
+
         return FALSE;
     }
+
+    free(configFilePath);
+    configFilePath = NULL;
 
     wchar_t *configCurrentlyReading = NULL;
 

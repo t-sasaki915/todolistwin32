@@ -3,7 +3,7 @@ RC = windres
 STRIP = strip
 
 CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -mwindows -Os
-LDFLAGS = -static -static-libgcc
+LDFLAGS = -static -static-libgcc -lshlwapi
 
 BIN_NAME = TodoList.exe
 
