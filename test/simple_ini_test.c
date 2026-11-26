@@ -421,6 +421,253 @@ int main(void)
     );
 
     // =========================================================
+    // Duplicate sections
+    // =========================================================
+    
+    ExpectFailure(
+        L"Duplicate section",
+        L"[Section]\r\n"
+        L"[Section]",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate section with entries",
+        L"[Section]\r\n"
+        L"Key1=Value1\r\n"
+        L"[Section]\r\n"
+        L"Key2=Value2",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate section with empty first section",
+        L"[Section1]\r\n"
+        L"[Section2]\r\n"
+        L"[Section1]",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate section with empty second section",
+        L"[Section1]\r\n"
+        L"[Section2]\r\n"
+        L"[Section2]",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate section separated by other sections",
+        L"[Section1]\r\n"
+        L"[Section2]\r\n"
+        L"[Section3]\r\n"
+        L"[Section1]",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate section with different entries",
+        L"[Section]\r\n"
+        L"Key1=Value1\r\n"
+        L"[AnotherSection]\r\n"
+        L"Key2=Value2\r\n"
+        L"[Section]\r\n"
+        L"Key3=Value3",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate section with comments",
+        L"[Section]\r\n"
+        L"; comment\r\n"
+        L"[Section]",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate section with blank lines",
+        L"[Section]\r\n"
+        L"\r\n"
+        L"\r\n"
+        L"[Section]",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate section with whitespace",
+        L"[Section]\r\n"
+        L"[  Section  ]",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate section with leading whitespace",
+        L"[Section]\r\n"
+        L"    [Section]",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate section with trailing comment",
+        L"[Section]\r\n"
+        L"[Section] ; comment",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate section with hash comment",
+        L"[Section]\r\n"
+        L"[Section] # comment",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Three identical sections",
+        L"[Section]\r\n"
+        L"[Section]\r\n"
+        L"[Section]",
+        INI_ERROR_SECTION_ALREADY_EXIST
+    );
+
+    // =========================================================
+    // Duplicate keys
+    // =========================================================
+    
+    ExpectFailure(
+        L"Duplicate key",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"Key=Value2",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key with identical values",
+        L"[Section]\r\n"
+        L"Key=Value\r\n"
+        L"Key=Value",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key with different values",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"Key=Value2",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key separated by another key",
+        L"[Section]\r\n"
+        L"Key1=Value1\r\n"
+        L"Key2=Value2\r\n"
+        L"Key1=Value3",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key separated by comments",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"; comment\r\n"
+        L"# comment\r\n"
+        L"Key=Value2",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key separated by blank lines",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"\r\n"
+        L"\r\n"
+        L"Key=Value2",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key with leading whitespace",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"    Key=Value2",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key with trailing whitespace before equal sign",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"Key   =Value2",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key with whitespace around equal sign",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"Key   =   Value2",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key with tab before equal sign",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"Key\t=Value2",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key with quoted values",
+        L"[Section]\r\n"
+        L"Key=\"Value1\"\r\n"
+        L"Key=\"Value2\"",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key with quoted and unquoted values",
+        L"[Section]\r\n"
+        L"Key=\"Value1\"\r\n"
+        L"Key=Value2",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key with empty values",
+        L"[Section]\r\n"
+        L"Key=\r\n"
+        L"Key=",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key with empty and non-empty values",
+        L"[Section]\r\n"
+        L"Key=\r\n"
+        L"Key=Value",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Duplicate key with comments after values",
+        L"[Section]\r\n"
+        L"Key=Value1 ; comment\r\n"
+        L"Key=Value2 # comment",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+    
+    ExpectFailure(
+        L"Three identical keys",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"Key=Value2\r\n"
+        L"Key=Value3",
+        INI_ERROR_KEY_ALREADY_EXIST
+    );
+
+    // =========================================================
     // Basic
     // =========================================================
 
@@ -999,42 +1246,6 @@ int main(void)
     );
 
     // =========================================================
-    // Repeated names
-    // =========================================================
-
-    ExpectSuccess(
-        L"Duplicate keys",
-        L"[Section]\r\n"
-        L"Key=Value1\r\n"
-        L"Key=Value2",
-        INI_FILE(
-            INI_SECTION(
-                L"Section",
-                INI_ENTRY(L"Key", L"Value1"),
-                INI_ENTRY(L"Key", L"Value2")
-            )
-        )
-    );
-
-    ExpectSuccess(
-        L"Duplicate section names",
-        L"[Section]\r\n"
-        L"Key1=Value1\r\n"
-        L"[Section]\r\n"
-        L"Key2=Value2",
-        INI_FILE(
-            INI_SECTION(
-                L"Section",
-                INI_ENTRY(L"Key1", L"Value1")
-            ),
-            INI_SECTION(
-                L"Section",
-                INI_ENTRY(L"Key2", L"Value2")
-            )
-        )
-    );
-
-    // =========================================================
     // Blank lines
     // =========================================================
 
@@ -1078,6 +1289,104 @@ int main(void)
                 L"Section",
                 INI_ENTRY(L"Key1", L"Value1"),
                 INI_ENTRY(L"Key2", L"Value2")
+            )
+        )
+    );
+
+    // =========================================================
+    // Similar but different section names
+    // =========================================================
+    
+    ExpectSuccess(
+        L"Section names differing by case",
+        L"[Section]\r\n"
+        L"[section]",
+        INI_FILE(
+            INI_SECTION(L"Section"),
+            INI_SECTION(L"section")
+        )
+    );
+    
+    ExpectSuccess(
+        L"Section names with common prefix",
+        L"[Section]\r\n"
+        L"[Section2]",
+        INI_FILE(
+            INI_SECTION(L"Section"),
+            INI_SECTION(L"Section2")
+        )
+    );
+    
+    ExpectSuccess(
+        L"Section names with common suffix",
+        L"[Section1]\r\n"
+        L"[OtherSection1]",
+        INI_FILE(
+            INI_SECTION(L"Section1"),
+            INI_SECTION(L"OtherSection1")
+        )
+    );
+    
+    // =========================================================
+    // Similar but different key names
+    // =========================================================
+    
+    ExpectSuccess(
+        L"Key names differing by case",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"key=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value1"),
+                INI_ENTRY(L"key", L"Value2")
+            )
+        )
+    );
+    
+    ExpectSuccess(
+        L"Key names with common prefix",
+        L"[Section]\r\n"
+        L"Key=Value1\r\n"
+        L"Key2=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key", L"Value1"),
+                INI_ENTRY(L"Key2", L"Value2")
+            )
+        )
+    );
+    
+    ExpectSuccess(
+        L"Key names with common suffix",
+        L"[Section]\r\n"
+        L"Key1=Value1\r\n"
+        L"OtherKey1=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section",
+                INI_ENTRY(L"Key1", L"Value1"),
+                INI_ENTRY(L"OtherKey1", L"Value2")
+            )
+        )
+    );
+    
+    ExpectSuccess(
+        L"Same key names in different sections",
+        L"[Section1]\r\n"
+        L"Key=Value1\r\n"
+        L"[Section2]\r\n"
+        L"Key=Value2",
+        INI_FILE(
+            INI_SECTION(
+                L"Section1",
+                INI_ENTRY(L"Key", L"Value1")
+            ),
+            INI_SECTION(
+                L"Section2",
+                INI_ENTRY(L"Key", L"Value2")
             )
         )
     );

@@ -455,6 +455,32 @@ BOOL FinaliseCurrentSection(IniReadContext *ctx, BOOL allocateNewAreas)
     return TRUE;
 }
 
+BOOL DoesSectionWithThisNameAlreadyExist(wchar_t *sectionName, IniReadContext *ctx)
+{
+    for (int i = 0; i < ctx->numberOfSections; i ++)
+    {
+        if (wcscmp(sectionName, ctx->iniSections[i].sectionName) == 0)
+        {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+BOOL DoesKeyWithThisNameAlreadyExist(wchar_t *keyName, IniReadContext *ctx)
+{
+    for (int i = 0; i < ctx->currentSectionNumberOfEntries; i ++)
+    {
+        if (wcscmp(keyName, ctx->currentSectionIniEntries[i].key) == 0)
+        {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
 BOOL ProcessSectionLine(int startIndex, wchar_t *buffer, int lineLength, IniReadContext *ctx)
 {
     if (!ExpectCharacter(L'[', startIndex, buffer))
@@ -528,6 +554,16 @@ BOOL ProcessSectionLine(int startIndex, wchar_t *buffer, int lineLength, IniRead
             return FALSE;
         }
     }
+
+    if (DoesSectionWithThisNameAlreadyExist(sectionName, ctx))
+    {
+        free(sectionName);
+
+        g_lastIniError = INI_ERROR_SECTION_ALREADY_EXIST;
+
+        return FALSE;
+    }
+
     ctx->currentSectionName = sectionName;
 
     return TRUE;
@@ -615,6 +651,13 @@ BOOL ProcessEntryValue(int startIndex, wchar_t *buffer, int lineLength, wchar_t 
 
 BOOL AddEntryToCurrentSection(wchar_t *key, wchar_t *value, IniReadContext *ctx)
 {
+    if (DoesKeyWithThisNameAlreadyExist(key, ctx))
+    {
+        g_lastIniError = INI_ERROR_KEY_ALREADY_EXIST;
+
+        return FALSE;
+    }
+
     if (ctx->currentSectionNumberOfEntries >= ctx->currentSectionEntryCapacity)
     {
         int newCapacity =
@@ -705,7 +748,7 @@ BOOL ProcessEntryLine(int startIndex, wchar_t *buffer, int lineLength, IniReadCo
 
     memcpy(keyName, &(buffer[keyNameStartIndex]), sizeof(wchar_t) * keyNameLength);
     keyName[keyNameLength] = L'\0';
-
+    
     if (!AddEntryToCurrentSection(keyName, value, ctx))
     {
         free(keyName);

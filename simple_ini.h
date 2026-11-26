@@ -49,11 +49,13 @@ typedef enum
     INI_ERROR_EXPECTED_EQUAL_SIGN             = 20,
     INI_ERROR_QUOTE_NOT_CLOSED                = 21,
     INI_ERROR_CLOSE_QUOTE_EXPECTED            = 22,
-    INI_ERROR_SECTION_NOT_FOUND               = 23,
-    INI_ERROR_KEY_NOT_FOUND                   = 24,
-    INI_ERROR_INVALID_BOOL_VALUE              = 25,
-    INI_ERROR_INVALID_LONG_VALUE              = 26,
-    INI_ERROR_EMPTY_VALUE                     = 27
+    INI_ERROR_SECTION_ALREADY_EXIST           = 23,
+    INI_ERROR_KEY_ALREADY_EXIST               = 24,
+    INI_ERROR_SECTION_NOT_FOUND               = 25,
+    INI_ERROR_KEY_NOT_FOUND                   = 26,
+    INI_ERROR_INVALID_BOOL_VALUE              = 27,
+    INI_ERROR_INVALID_LONG_VALUE              = 28,
+    INI_ERROR_EMPTY_VALUE                     = 29
 } IniError;
 
 IniError GetLastIniError(void);
