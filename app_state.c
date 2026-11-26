@@ -5,10 +5,10 @@
 #include "resource.h"
 #include "util.h"
 
-AppState *g_appState = NULL;
+static AppState *g_appState = NULL;
 
-HINSTANCE g_hInstance;
-HWND g_mainHWND;
+static HINSTANCE g_hInstance;
+static HWND g_mainHWND;
 
 BOOL InitialiseAppState(HINSTANCE hInstance, HWND mainHWND)
 {
@@ -281,22 +281,28 @@ int GetTaskItemRightClickMenuTarget(void)
 
 void FreeAppState(void)
 {
-    DeleteTaskEntriesFromAppState();
+    if (g_appState != NULL)
+    {
+        DeleteTaskEntriesFromAppState();
 
-    if (g_appState->currentTaskListFilePath != NULL)
-    {
-        free(g_appState->currentTaskListFilePath);
-        g_appState->currentTaskListFilePath = NULL;
-    }
-    if (g_appState->currentTaskListFriendlyName != NULL)
-    {
-        free(g_appState->currentTaskListFriendlyName);
-        g_appState->currentTaskListFriendlyName = NULL;
-    }
-    if (g_appState->customTextListFont != NULL)
-    {
-        DeleteObject(g_appState->customTextListFont);
-        g_appState->customTextListFont = NULL;
+        if (g_appState->currentTaskListFilePath != NULL)
+        {
+            free(g_appState->currentTaskListFilePath);
+            g_appState->currentTaskListFilePath = NULL;
+        }
+        if (g_appState->currentTaskListFriendlyName != NULL)
+        {
+            free(g_appState->currentTaskListFriendlyName);
+            g_appState->currentTaskListFriendlyName = NULL;
+        }
+        if (g_appState->customTextListFont != NULL)
+        {
+            DeleteObject(g_appState->customTextListFont);
+            g_appState->customTextListFont = NULL;
+        }
+
+        free(g_appState);
+        g_appState = NULL;
     }
 }
 

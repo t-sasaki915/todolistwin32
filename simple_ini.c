@@ -21,13 +21,13 @@ typedef struct
 
 #define ACCEPTABLE_TRUE_VALUE_COUNT 9
 static const wchar_t *g_acceptableTrueValue[ACCEPTABLE_TRUE_VALUE_COUNT] =
-    { L"TRUE", L"True", L"true", L"YES", L"Yes", L"yes", L"Y", L"y", L"1"};
+    { L"TRUE", L"True", L"true", L"YES", L"Yes", L"yes", L"Y", L"y", L"1" };
 
 #define ACCEPTABLE_FALSE_VALUE_COUNT 9
 static const wchar_t *g_acceptableFalseValue[ACCEPTABLE_FALSE_VALUE_COUNT] =
     { L"FALSE", L"False", L"false", L"NO", L"No", L"no", L"N", L"n", L"0" };
 
-IniError g_lastIniError = INI_ERROR_NO_ERROR;
+static IniError g_lastIniError = INI_ERROR_NO_ERROR;
 
 IniError GetLastIniError(void)
 {
