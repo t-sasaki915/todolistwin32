@@ -1069,12 +1069,133 @@ BOOL SubstituteLongDefault(LONG *resultPtr, LONG defValPtr, BOOL substituteEmpty
     return FALSE;
 }
 
+BOOL AppendNewSection(wchar_t *contentBuffer, wchar_t *section, wchar_t *key, wchar_t *value, wchar_t **resultBufferPtr)
+{
+    // '\n' + '[' + Section + ']' + '\n' + Key + '=' + Value
+    // There are five extra characters.
+    int newSectionLength = wcslen(section) + wcslen(key) + wcslen(value) + 5;
+    int oldContentLength = wcslen(contentBuffer);
+    int newContentLength = oldContentLength + newSectionLength;
+
+    wchar_t *resultBuffer = calloc(newContentLength + 1, sizeof(wchar_t));
+    if (resultBuffer == NULL)
+    {
+        g_lastIniError = INI_ERROR_CANNOT_ALLOCATE_MEMORY;
+
+        return FALSE;
+    }
+
+    memcpy(
+        resultBuffer,
+        contentBuffer,
+        oldContentLength * sizeof(wchar_t)
+    );
+
+    wchar_t *newSection = calloc(newSectionLength + 1, sizeof(wchar_t));
+    if (newSection == NULL)
+    {
+        g_lastIniError = INI_ERROR_CANNOT_ALLOCATE_MEMORY;
+
+        free(resultBuffer);
+
+        return FALSE;
+    }
+
+    swprintf(
+        newSection,
+        newSectionLength + 1,
+        L"\n[%ls]\n%ls=%ls",
+        section,
+        key,
+        value
+    );
+
+    memcpy(
+        &(resultBuffer[oldContentLength]),
+        newSection,
+        newSectionLength * sizeof(wchar_t)
+    );
+
+    free(newSection);
+
+    resultBuffer[newContentLength] = L'\0';
+
+    *resultBufferPtr = resultBuffer;
+
+    return TRUE;
+}
+
+BOOL WriteIniValueWchar(wchar_t *contentBuffer, wchar_t *section, wchar_t *key, wchar_t *value, wchar_t **resultBufferPtr)
+{
+    IniFile iniFile = {0};
+    if (!ReadIniFileWchar(contentBuffer, &iniFile))
+    {
+        return FALSE;
+    }
+
+    wchar_t *currentValue;
+    BOOL valueExists = GetStringFromIni(&iniFile, section, key, &currentValue);
+    IniError lastError = GetLastIniError();
+
+    if (valueExists || (!valueExists && lastError == INI_ERROR_EMPTY_VALUE))
+    {
+        g_lastIniError = INI_ERROR_NO_ERROR;
+
+        MessageBoxW(NULL, L"Key exists", L"", MB_OK);
+    }
+    else if (!valueExists && lastError == INI_ERROR_SECTION_NOT_FOUND)
+    {
+        g_lastIniError = INI_ERROR_NO_ERROR;
+
+        if (!AppendNewSection(contentBuffer, section, key, value, resultBufferPtr))
+        {
+            goto Failed;
+        }
+    }
+    else if (!valueExists && lastError == INI_ERROR_KEY_NOT_FOUND)
+    {
+        g_lastIniError = INI_ERROR_NO_ERROR;
+
+        MessageBoxW(NULL, L"Key not found", L"", MB_OK);
+    }
+    else
+    {
+        FreeIniFile(&iniFile);
+
+        return FALSE;
+    }
+
+    FreeIniFile(&iniFile);
+
+    return TRUE;
+
+Failed:
+    FreeIniFile(&iniFile);
+
+    return FALSE;
+}
+
 BOOL WriteIniValueString(const wchar_t *filePath, wchar_t *section, wchar_t *key, wchar_t *value)
 {
-    wchar_t test[1024];
-    swprintf(test, 1024, L"FilePath: %ls\nSection: %ls\nKey: %ls\nValue: %ls", filePath, section, key, value);
+    wchar_t *contentBuffer = NULL;
+    if (!ReadIniFileRaw(filePath, &contentBuffer))
+    {
+        return FALSE;
+    }
 
-    MessageBoxW(NULL, test, L"WRITE", MB_OK);
+    wchar_t *resultBuffer = NULL;
+    if (!WriteIniValueWchar(contentBuffer, section, key, value, &resultBuffer))
+    {
+        free(contentBuffer);
+
+        return FALSE;
+    }
+
+    free(contentBuffer);
+
+    MessageBoxW(NULL, resultBuffer, L"WRITE", MB_OK);
+
+    free(resultBuffer);
 
     return TRUE;
 }
